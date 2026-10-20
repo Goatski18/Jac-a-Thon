@@ -52,7 +52,10 @@ function h(tag, attrs, ...kids){
   for (const c of kids.flat()) if (c != null && c !== false) el.append(c.nodeType ? c : String(c));
   return el;
 }
-const kr = n => Math.round(n).toLocaleString("sv-SE") + " kr";
+// replaceChildren skriver ut null som texten "null". Hoppa över tomma barn överallt, som h() gör.
+const _replaceChildren = Element.prototype.replaceChildren;
+Element.prototype.replaceChildren = function(...kids){ return _replaceChildren.apply(this, kids.flat().filter(c => c != null && c !== false)); };
+const kr = n => Math.round(+n || 0).toLocaleString("sv-SE") + " kr";
 const today = () => new Date().toLocaleDateString("sv-SE");
 const fmtDate = d => d ? new Date(d+"T12:00").toLocaleDateString("sv-SE",{day:"numeric",month:"short",year: d.slice(0,4)===today().slice(0,4)?undefined:"numeric"}) : "";
 const personName = id => (S.people.find(p => p.id === id) || {}).name || "";
@@ -324,7 +327,7 @@ function renderHelgen(){
   const cars = S.cars || [];
   $("carList").replaceChildren(...(cars.length ? cars.map(c => { const riders = c.riders || []; const inCar = riders.includes(me); const full = riders.length >= (+c.seats||0);
     return h("div",{class:"row"}, yakEl(c.driver, 36), h("div",{class:"main"}, h("strong",{}, `${personName(c.driver) || "Förare"} kör${c.from ? " från " + c.from : ""}`),
-        h("span",{class:"meta"}, `${riders.length} av ${c.seats} platser: ` + (riders.map(personName).filter(Boolean).join(", ") || "inga än"))),
+        h("span",{class:"meta"}, `${riders.length} av ${+c.seats || "?"} platser: ` + (riders.map(personName).filter(Boolean).join(", ") || "inga än"))),
       me && me !== c.driver && (inCar || !full) ? h("button",{class: inCar ? "btn ghost small" : "btn small", type:"button", onclick:()=>joinList("cars", c, "riders", !inCar)}, inCar ? "Kliv av" : "Åk med") : null,
       isOrg() || c.driver === me ? h("button",{class:"btn danger small", type:"button", onclick:()=>{ if (confirm("Ta bort bilen?")) write(()=>gdb.doc("cars/"+c.id).delete()); }}, "Ta bort") : null);
   }) : [h("div",{class:"empty"}, "Inga bilar än. Kör du? Lägg till din bil nedan.")]));
@@ -333,7 +336,7 @@ function renderHelgen(){
   // rum
   const rooms = S.rooms || [];
   $("roomList").replaceChildren(...(rooms.length ? rooms.map(r => { const sl = r.sleepers || []; const inRoom = sl.includes(me); const full = sl.length >= (+r.beds||0);
-    return h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{}, r.name), h("span",{class:"meta"}, `${sl.length} av ${r.beds} sängar: ` + (sl.map(personName).filter(Boolean).join(", ") || "tomt"))),
+    return h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{}, r.name || "Rum"), h("span",{class:"meta"}, `${sl.length} av ${+r.beds || "?"} sängar: ` + (sl.map(personName).filter(Boolean).join(", ") || "tomt"))),
       me && (inRoom || !full) ? h("button",{class: inRoom ? "btn ghost small" : "btn small", type:"button", onclick:()=>joinList("rooms", r, "sleepers", !inRoom)}, inRoom ? "Flytta ut" : "Sov här") : null,
       isOrg() ? h("button",{class:"btn danger small", type:"button", onclick:()=>{ if (confirm("Ta bort rummet?")) write(()=>gdb.doc("rooms/"+r.id).delete()); }}, "Ta bort") : null);
   }) : [h("div",{class:"empty"}, "Rummen läggs upp av arrangörerna.")]));
@@ -417,9 +420,10 @@ function render(){
   $("myYakPanel").hidden = !personName(me);
   if (personName(me) && !$("myYak").dataset.for) { $("myYak").dataset.for = me; $("myYak").replaceChildren(yakEditor(me)); }
   if ($("myYak").dataset.for && $("myYak").dataset.for !== me) { $("myYak").dataset.for = ""; $("myYak").replaceChildren(); }
-  renderTabs(); renderWelcome();
-  renderStatus(); renderHem(); renderHelgen(); renderPeople(people); renderExpenses(people); renderTopp(people);
-  if (isOrg()) { renderOverview(); renderDates(people); renderBudget(people); renderDests(); renderActs(); renderTasks(); }
+  // Varje del ritas för sig, så att en trasig post bara påverkar sin egen flik.
+  const parts = [renderTabs, renderWelcome, renderStatus, renderHem, renderHelgen, renderPeople, renderExpenses, renderTopp];
+  if (isOrg()) parts.push(renderOverview, renderDates, renderBudget, renderDests, renderActs, renderTasks);
+  for (const f of parts) try { f(people); } catch(e) { console.error(f.name, e); }
 }
 
 /* Topplista: arrangörerna skapar grenar, alla rapporterar. Bästa resultatet per person räknas. */
@@ -528,12 +532,12 @@ function renderExpenses(){
   const list = [...ex].sort((x,y)=>(y.date||"").localeCompare(x.date||""));
   const total = coming().length;
   $("expenses").replaceChildren(...(list.length ? list.map(e => { const sh = sharersOf(e);
-    return h("div",{class:"row"}, yakEl(e.paidBy, 32), h("div",{class:"main"}, h("strong",{}, `${e.title}: ${kr(+e.amount||0)}`),
+    return h("div",{class:"row"}, yakEl(e.paidBy, 32), h("div",{class:"main"}, h("strong",{}, `${e.title || "Utlägg"}: ${kr(+e.amount||0)}`),
       h("span",{class:"meta"}, `${name(e.paidBy)} betalade${e.date ? " · "+fmtDate(e.date) : ""} · ` + (e.sharedBy && e.sharedBy.length ? `delas av ${sh.map(id=>name(id).split(" ")[0]).join(", ")}` : `delas av alla som kommer (${total})`))), del(e));
   }) : [h("div",{class:"empty"}, S.loaded ? "Inga utlägg än. Lägg in det första ovan." : "Laddar…")]));
   const trash = S.expenses.filter(e => e.deleted).sort((x,y)=>(y.deletedAt||"").localeCompare(x.deletedAt||""));
   $("trashBox").hidden = !trash.length;
-  $("trash").replaceChildren(...trash.map(e => h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{}, `${e.title}: ${kr(+e.amount||0)}`),
+  $("trash").replaceChildren(...trash.map(e => h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{}, `${e.title || "Utlägg"}: ${kr(+e.amount||0)}`),
     h("span",{class:"meta"}, `Borttagen ${fmtTime(e.deletedAt)}${e.deletedBy && personName(e.deletedBy) ? " av " + personName(e.deletedBy) : ""}`)),
     h("button",{class:"btn ghost small", type:"button", onclick:()=>write(()=>gdb.doc("expenses/"+e.id).update({deleted:false}))}, "Återställ"))));
   if (!$("eShare").contains(document.activeElement)) renderShareChips();
@@ -550,6 +554,7 @@ function renderStatus(){
   const st = $("status");
   if (!S.loaded && db && groupCode) { st.hidden = false; st.textContent = "Kopplar upp mot den delade datan…"; return; }
   if (db === false) { st.hidden = false; st.textContent = loadErr || "Den delade datan kunde inte laddas. Kolla nätet och öppna appen igen."; return; }
+  if (!navigator.onLine) { st.hidden = false; st.textContent = "Du är offline. Det du ändrar sparas på telefonen och skickas när nätet är tillbaka."; return; }
   if (S.loaded && !personName(me)) { st.hidden = false; st.textContent = "Välj dig själv i listan uppe till höger."; return; }
   st.hidden = true;
 }
@@ -593,15 +598,18 @@ function renderOverview(){
   const mine = open.filter(t=>t.owner===me).sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999"));
   $("ovTasksH").textContent = mine.length ? "Dina uppgifter" : "Närmaste uppgifter";
   const next = (mine.length ? mine : open.filter(t=>t.due).sort((a,b)=>a.due.localeCompare(b.due))).slice(0,5);
-  $("ovTasks").replaceChildren(...(next.length ? next.map(taskRow) : [h("div",{class:"empty"},"Inga öppna uppgifter med deadline.")]));
+  if (!editing($("ovTasks"))) $("ovTasks").replaceChildren(...(next.length ? next.map(taskRow) : [h("div",{class:"empty"},"Inga öppna uppgifter med deadline.")]));
   const acts = sortedActs().slice(0,3);
   const ds = sortedDests().filter(d=>votesOf(d)).slice(0,3);
   $("ovDests").replaceChildren(...(ds.length ? ds.map(d=>h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{},d.title), h("span",{class:"meta"}, `${rost(votesOf(d))}${d.price?` · ${d.price}`:""}`)))) : [h("div",{class:"empty"},"Inga röster än. Rösta under Koncept.")]));
-  $("ovActs").replaceChildren(...(acts.length ? acts.map(a=>h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{},a.title), h("span",{class:"meta"}, `${rost(votesOf(a))}${a.cost?` · ca ${kr(a.cost)}/pers`:""}`)))) : [h("div",{class:"empty"},"Inga förslag än. Lägg till under Aktiviteter.")]));
+  $("ovActs").replaceChildren(...(acts.length ? acts.map(a=>h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{},a.title), h("span",{class:"meta"}, `${rost(votesOf(a))}${+a.cost?` · ca ${kr(a.cost)}/pers`:""}`)))) : [h("div",{class:"empty"},"Inga förslag än. Lägg till under Aktiviteter.")]));
 }
 
+// Rita inte om en lista medan någon skriver eller väljer i den, annars tappas fokus och det man skrivit.
+const editing = el => { const a = document.activeElement; return !!a && el.contains(a) && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName); };
 function renderPeople(people){
   const box = $("people"); const org = isOrg();
+  if (editing(box)) return;
   if (!people.length) { box.replaceChildren(h("div",{class:"empty"}, S.loaded ? "Inga deltagare än." : "Laddar deltagare…")); }
   else box.replaceChildren(...people.map(p => {
     const mine = p.id === me;
@@ -707,7 +715,7 @@ function renderActs(){
     const who = a.by ? personName(a.by) : "";
     return h("div",{class:"row"},
       h("div",{class:"main"}, h("strong",{}, a.title), a.desc ? h("span",{class:"meta"}, a.desc) : null,
-        h("span",{class:"meta"}, [a.cost ? `ca ${kr(a.cost)}/pers` : null, who ? `föreslaget av ${who}` : "från planen"].filter(Boolean).join(" · "))),
+        h("span",{class:"meta"}, [+a.cost ? `ca ${kr(a.cost)}/pers` : null, who ? `föreslaget av ${who}` : "från planen"].filter(Boolean).join(" · "))),
       h("span",{class:"pill"}, `${rost(votesOf(a))}`),
       h("button",{class: voted ? "btn small" : "btn ghost small", type:"button", onclick:()=>{ if (!needMe()) return;
         write(()=>db.doc("activities/"+a.id).update({["votes."+me]:!voted})); }}, voted ? "Röstat" : "Rösta"));
@@ -772,6 +780,7 @@ function taskRow(t){
 let taskFilter = "open"; try { taskFilter = localStorage.getItem("svx-taskf") || "open"; } catch(e) {}
 $("taskFilter").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; taskFilter = b.dataset.f; try { localStorage.setItem("svx-taskf", taskFilter); } catch(_){} renderTasks(); });
 function renderTasks(){
+  if (editing($("tasks"))) return;
   for (const b of $("taskFilter").children) b.setAttribute("aria-pressed", String(b.dataset.f === taskFilter));
   const all = S.tasks, done = all.filter(t=>t.status==="Klar"), late = all.filter(isLate);
   const mineOpen = all.filter(t=>t.owner===me && t.status!=="Klar");
@@ -994,8 +1003,8 @@ function listenOrg(){
   list("activities", d => S.acts = d.map(x => ({id:x.id, ...x.data()})));
   list("destinations", d => S.dests = d.map(x => ({id:x.id, ...x.data()})));
   list("tasks", d => S.tasks = d.map(x => ({id:x.id, ...x.data()})));
-  list("schedule", d => S.orgSchedule = d.map(x => ({id:x.id, ...x.data()})));
-  list("teasers", d => S.orgTeasers = d.map(x => ({id:x.id, ...x.data()})));
+  list("schedule", d => S.orgSchedule = d.map(x => ({id:x.id, ...x.data()})).filter(it => it.title));
+  list("teasers", d => S.orgTeasers = d.map(x => ({id:x.id, ...x.data()})).filter(t => t.text));
   odb.collection("diet").onSnapshot(s => { S.diet = Object.fromEntries(s.docs.map(x => [x.id, x.data()])); render(); }, onErr);
   odb.doc("orgsettings/calc").onSnapshot(s => { S.calc = s.exists ? {...DEFAULT_CALC, ...s.data()} : {...DEFAULT_CALC}; render(); }, onErr);
 }
@@ -1010,6 +1019,13 @@ $("leave").addEventListener("click", () => {
   if (!confirm("Byta grupp? Du behöver inbjudningslänken för att komma tillbaka.")) return;
   try { localStorage.removeItem(CODE_KEY); localStorage.removeItem("svx-me"); localStorage.removeItem(ORG_KEY + ":" + groupCode); } catch(e){}
   location.hash = ""; location.reload(); });
+addEventListener("online", () => render()); addEventListener("offline", () => render());
+// Dubbeltryck ska inte skapa dubbletter: samma formulär med samma innehåll inom 1,5 sekunder skickas bara en gång.
+const lastSubmit = new WeakMap();
+document.addEventListener("submit", e => { const f = e.target;
+  const sig = [...f.elements].map(x => x.type === "checkbox" ? x.checked : x.value).join("\u0001"), prev = lastSubmit.get(f);
+  if (prev && prev.sig === sig && Date.now() - prev.at < 1500) { e.preventDefault(); e.stopImmediatePropagation(); return; }
+  lastSubmit.set(f, {sig, at: Date.now()}); }, true);
 $("modeNote").textContent = FB ? "" : "Demoläge: ändringar sparas bara på den här enheten";
 
 render();
@@ -1024,15 +1040,15 @@ render();
   let pending = 11;
   const ready = () => { if (pending > 0 && --pending === 0) { S.loaded = true; } render(); };
   const list = (name, set) => gdb.collection(name).onSnapshot(s => { set(s.docs); ready(); }, onErr);
-  list("people", d => S.people = d.map(x => ({id:x.id, ...x.data()})));
+  list("people", d => S.people = d.map(x => { const p = x.data(); return {id:x.id, ...p, name: String(p.name || "").trim() || "Utan namn"}; }));
   list("expenses", d => S.expenses = d.map(x => ({id:x.id, ...x.data()})));
-  list("news", d => S.news = d.map(x => ({id:x.id, ...x.data()})).sort((a,b) => (b.at||"").localeCompare(a.at||"")));
-  list("schedule", d => S.schedule = d.map(x => ({id:x.id, ...x.data()})));
+  list("news", d => S.news = d.map(x => ({id:x.id, ...x.data()})).filter(n => n.text).sort((a,b) => (b.at||"").localeCompare(a.at||"")));
+  list("schedule", d => S.schedule = d.map(x => ({id:x.id, ...x.data()})).filter(it => it.title));
   list("cars", d => S.cars = d.map(x => ({id:x.id, ...x.data()})));
   list("rooms", d => S.rooms = d.map(x => ({id:x.id, ...x.data()})));
-  list("teasers", d => S.teasers = d.map(x => ({id:x.id, ...x.data()})));
-  list("grenar", d => S.grenar = d.map(x => ({id:x.id, ...x.data()})));
-  list("resultat", d => S.resultat = d.map(x => ({id:x.id, ...x.data()})));
+  list("teasers", d => S.teasers = d.map(x => ({id:x.id, ...x.data()})).filter(t => t.text));
+  list("grenar", d => S.grenar = d.map(x => ({id:x.id, ...x.data()})).filter(g => g.title));
+  list("resultat", d => S.resultat = d.map(x => ({id:x.id, ...x.data()})).map(r => ({...r, value: parseFloat(r.value)})).filter(r => r.gren && r.person && isFinite(r.value)));
   gdb.doc("settings/practical").onSnapshot(s => { S.practical = s.exists ? s.data() : {}; ready(); }, onErr);
   let seeding = false;
   gdb.doc("settings/meta").onSnapshot(s => {
