@@ -118,10 +118,32 @@ input,select,textarea{font-size:16px}
 .dest-meta{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;color:var(--muted)}
 .foot{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:center;font-size:13px;color:var(--muted);padding-top:8px}
 @media (max-width:560px){h1 small{display:none}.top{padding-block:8px 2px}.bib-sm{width:44px}.me select{max-width:52vw}}
+.yak{display:inline-block;flex:none;border-radius:50%;vertical-align:middle}
+.who{display:inline-flex;align-items:center;gap:6px}
+.badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:99px;background:var(--lingon);color:#fff;font-size:11px;line-height:18px;text-align:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:99px;padding:6px 12px;font:600 13px var(--body);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.group-h{font:600 12px var(--body);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:8px 0 0}
+.group-h.late{color:var(--lingon)}
+.row input[type=date]{width:auto}
+.welcome{position:fixed;inset:0;z-index:15;background:var(--bg);overflow-y:auto;padding:max(24px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-left,0px)) 32px}
+.welcome .box{max-width:460px;margin:0 auto;display:grid;gap:16px}
+.welcome h1{text-align:center}
+.pick{display:grid;gap:8px}
+.pick button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font:600 16px var(--body);cursor:pointer}
+.pick button small{display:block;font:400 13px var(--body);color:var(--muted)}
+.pick button b{font:800 20px var(--display)}
+.swatches{display:flex;flex-wrap:wrap;gap:8px}
+.swatches button{width:34px;height:34px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0;background:none;font-size:12px;color:var(--ink)}
+.swatches button[aria-pressed="true"]{outline:3px solid var(--accent);outline-offset:2px}
+.yakedit{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
+@media (max-width:420px){.yakedit{grid-template-columns:1fr;justify-items:center}}
 .foot button{background:none;border:0;color:var(--muted);text-decoration:underline;font:inherit;cursor:pointer;padding:4px}
 </style>
 </head>
 <body>
+<div class="welcome" id="welcome" hidden><div class="box" id="welcomeBox"></div></div>
 <div class="gate" id="gate" hidden>
   <form class="box" id="gateForm">
     <img src="icons/icon-192.png" alt="Jac-a-yak">
@@ -137,18 +159,20 @@ input,select,textarea{font-size:16px}
   <div class="wrap">
     <div class="top">
       <div class="brand"><svg class="bib-sm" viewBox="0 0 140 100" role="img" aria-label="Jac-a-thon nummerlapp 27"><rect x="3" y="3" width="134" height="94" rx="9" fill="#fbfaf6" stroke="#1f5c45" stroke-width="3"/><rect x="3" y="3" width="134" height="24" rx="9" fill="#1f5c45"/><rect x="3" y="18" width="134" height="9" fill="#1f5c45"/><circle cx="13" cy="37" r="3.2" fill="#9aa59f"/><circle cx="127" cy="37" r="3.2" fill="#9aa59f"/><circle cx="13" cy="87" r="3.2" fill="#9aa59f"/><circle cx="127" cy="87" r="3.2" fill="#9aa59f"/><text x="70" y="20" text-anchor="middle" fill="#fbfaf6" font-family="Bricolage Grotesque, system-ui, sans-serif" font-weight="800" font-size="14" letter-spacing="1.5">JAC-A-THON</text><text x="70" y="78" text-anchor="middle" fill="#b3263a" font-family="Bricolage Grotesque, system-ui, sans-serif" font-weight="800" font-size="50">27</text><text x="70" y="92" text-anchor="middle" fill="#41514a" font-family="Figtree, system-ui, sans-serif" font-weight="600" font-size="8.5" letter-spacing="1.2">ÖREBRO · MAJ 2027</text></svg><h1>Jac-a-thon<small>Jacobs svensexa · fre–sön i april eller maj 2027 · utgår från Örebro</small></h1></div>
-      <div class="me"><label for="meSel" style="display:flex;align-items:center;gap:8px">Jag är
+      <div class="me"><span id="meYak"></span><label for="meSel" style="display:flex;align-items:center;gap:8px">Jag är
         <select id="meSel"><option value="">Välj dig själv</option></select></label></div>
     </div>
     <nav role="tablist" id="tabs">
       <button role="tab" data-tab="oversikt" aria-selected="true">Översikt</button>
-      <button role="tab" data-tab="deltagare">Deltagare</button>
+      
+      <button role="tab" data-tab="uppgifter">Uppgifter<span class="badge" id="taskBadge" hidden></span></button>
       <button role="tab" data-tab="datum">Datum</button>
       <button role="tab" data-tab="budget">Budget</button>
       <button role="tab" data-tab="resmal">Resmål</button>
       <button role="tab" data-tab="aktiviteter">Aktiviteter</button>
-      <button role="tab" data-tab="uppgifter">Uppgifter</button>
+      
       <button role="tab" data-tab="utlagg">Utlägg</button>
+      <button role="tab" data-tab="deltagare">Deltagare</button>
     </nav>
   </div>
 </header>
@@ -193,7 +217,7 @@ input,select,textarea{font-size:16px}
     </div>
     <div class="stats" id="stats"></div>
     <div class="grid2">
-      <div class="panel"><h3>Närmaste uppgifter</h3><div class="rows" id="ovTasks"></div></div>
+      <div class="panel"><h3 id="ovTasksH">Närmaste uppgifter</h3><div class="rows" id="ovTasks"></div></div>
       <div class="panel"><h3>Populäraste aktiviteter</h3><div class="rows" id="ovActs"></div><h3>Populäraste resmål</h3><div class="rows" id="ovDests"></div></div>
     </div>
   </section>
@@ -211,6 +235,7 @@ input,select,textarea{font-size:16px}
         <button class="btn" type="submit">Lägg till</button>
       </form>
     </div>
+    <div class="panel" id="myYakPanel" hidden><h3>Min jak</h3><div id="myYak"></div></div>
     <div class="rows" id="people"></div>
     <div class="panel">
       <h3>Bjud in</h3>
@@ -228,17 +253,18 @@ input,select,textarea{font-size:16px}
 
   <!-- BUDGET -->
   <section role="tabpanel" id="p-budget" hidden>
-    <div><h2>Budget</h2><p class="lead">Budgeten beslutas gemensamt. Välj den högsta nivå du klarar för hela helgen, inklusive din del av Jacobs kostnad och 10 % buffert. Ingen ser vad just du valt, bara antal per nivå.</p></div>
+    <div><h2>Budget</h2><p class="lead">Arrangörerna väljer nivå för hela helgen, inklusive Jacobs del och 10 % buffert. Bara antal per nivå visas, inte vem som valt vad. Kalkylen nedan visar vad det faktiskt kostar.</p></div>
     <div class="grid2">
       <div class="panel">
-        <h3>Mitt val</h3>
+        <h3>Mitt val (arrangörer)</h3>
+        <p id="budgetNote" class="lead" hidden>Budgeten sätts av arrangörerna. Här ser du vad de landat i.</p>
         <form class="form" id="budgetForm">
           <fieldset class="wide" id="bLevels" style="border:0;padding:0;margin:0;display:grid;gap:8px"><legend style="font-size:13px;color:var(--muted);margin-bottom:6px">Högsta nivå jag klarar, hela helgen</legend></fieldset>
           <label class="wide">Kommentar<input id="bComment" maxlength="140" placeholder="t.ex. hellre enklare boende och mer aktivitet"></label>
           <button class="btn" type="submit" id="bSave">Spara</button>
         </form>
       </div>
-      <div class="panel"><h3>Gruppens val</h3><div id="budgetSummary"></div><div class="rows" id="budgetList"></div></div>
+      <div class="panel"><h3>Arrangörernas val</h3><div id="budgetSummary"></div><div class="rows" id="budgetList"></div></div>
     </div>
     <div class="panel">
       <h3>Kostnadskalkyl</h3>
@@ -288,18 +314,20 @@ input,select,textarea{font-size:16px}
 
   <!-- UPPGIFTER -->
   <section role="tabpanel" id="p-uppgifter" hidden>
-    <div><h2>Uppgifter</h2><p class="lead">Ta en uppgift genom att sätta dig som ansvarig. Sorterat på deadline.</p></div>
+    <div><h2>Uppgifter</h2><p class="lead">Ge en uppgift till någon eller ta en själv. Alla ser vem som har vad och vad som är försenat,.</p></div>
+    <div class="stats" id="taskStats"></div>
     <div class="panel">
       <h3>Ny uppgift</h3>
       <form class="form" id="taskForm">
         <label class="wide">Uppgift<input id="tTitle" required maxlength="120"></label>
-        <label>Ansvarig<select id="tOwner"></select></label>
+        <label>Ge till<select id="tOwner"></select></label>
         <label>Deadline<input id="tDue" type="date"></label>
         <button class="btn" type="submit">Lägg till</button>
       </form>
     </div>
-    <div class="inline"><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="onlyMine" style="width:auto"> Visa bara mina</label>
-      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="hideDone" style="width:auto"> Dölj klara</label></div>
+    <div class="chips" id="taskFilter" role="group" aria-label="Visa">
+      <button class="chip" type="button" data-f="mine">Mina</button><button class="chip" type="button" data-f="open">Öppna</button><button class="chip" type="button" data-f="late">Försenade</button><button class="chip" type="button" data-f="free">Utan ansvarig</button><button class="chip" type="button" data-f="done">Klara</button>
+    </div>
     <div class="rows" id="tasks"></div>
   </section>
 
@@ -378,7 +406,13 @@ function needMe(){ if (!me || !personName(me)) { toast("Välj dig själv uppe ti
 
 async function write(fn){
   if (!db) { toast("Sparar inte: ingen kontakt med den delade datan"); render(); return false; }
-  try { await fn(); return true; }
+  try {
+    let failed = null;
+    const p = Promise.resolve().then(fn).catch(e => { failed = e; throw e; });
+    const r = await Promise.race([p.then(() => "ok"), new Promise(res => setTimeout(() => res("queued"), 1500))]);
+    if (r === "queued") p.catch(e => { console.error(e); toast("En ändring kunde inte sparas. Försök igen."); });
+    return true;
+  }
   catch(e){
     if (e && e.code === "permission-denied") toast("Gruppkoden fungerar inte. Öppna inbjudningslänken igen.");
     else if (e && e.code === "resource-exhausted") toast("Dagens gratiskvot är slut. Försök igen i morgon.");
@@ -388,7 +422,7 @@ async function write(fn){
 }
 
 /* ---------- tabs ---------- */
-const TABS = ["oversikt","deltagare","datum","budget","resmal","aktiviteter","uppgifter","utlagg"];
+const TABS = ["oversikt","uppgifter","datum","budget","resmal","aktiviteter","utlagg","deltagare"];
 function showTab(t){
   if (!TABS.includes(t)) t = "oversikt";
   for (const b of document.querySelectorAll("#tabs button")) b.setAttribute("aria-selected", b.dataset.tab === t);
@@ -403,6 +437,87 @@ showTab(startTab);
 /* ---------- identity ---------- */
 $("meSel").addEventListener("change", e => { me = e.target.value; try { localStorage.setItem("svx-me", me); } catch(_){} render(); });
 
+/* ---------- jak-avatarer ---------- */
+const FUR = ["#5a3a26","#3b2619","#8a5a3b","#c08a5a","#2f2a28","#e8dcc6","#7a6a5a","#a0522d","#d9a066","#6b6b6b"];
+const BGS = ["#ffe9a8","#cde8d6","#d6e4f5","#f5d0d0","#e3d6f5","#f5e6cc","#c9efe9","#fbd3a9","#e0e0e0","#ffd6ec"];
+const ACCS = [["","Inget"],["glasses","Solglasögon"],["cap","Keps"],["beanie","Mössa"],["crown","Krona"],["band","Pannband"],["stache","Mustasch"]];
+function hashId(s){ let x = 0; for (const c of String(s||"")) x = (x*31 + c.charCodeAt(0)) >>> 0; return x; }
+function avatarOf(id){ const p = S.people.find(q => q.id === id); const h0 = hashId(id);
+  const d = {fur: FUR[h0 % FUR.length], bg: BGS[(h0>>>4) % BGS.length], acc: ACCS[(h0>>>8) % ACCS.length][0]};
+  return {...d, ...((p && p.avatar) || {})}; }
+function shade(hex, f){ const n = parseInt(hex.slice(1),16); const c = [n>>16, (n>>8)&255, n&255].map(v => Math.max(0, Math.min(255, Math.round(v*f))));
+  return "#" + c.map(v => v.toString(16).padStart(2,"0")).join(""); }
+function yakSvg(av, size){
+  const fur = av.fur, dark = shade(fur, .72), snout = shade(fur, 1.35), k = "#141010";
+  const acc = {
+    glasses:`<g stroke="${k}" stroke-width="3"><circle cx="39" cy="54" r="8" fill="${k}"/><circle cx="61" cy="54" r="8" fill="${k}"/><path d="M47 53 Q50 50 53 53" fill="none"/></g>`,
+    cap:`<path d="M24 38 Q50 6 76 38 Z" fill="#b3263a" stroke="${k}" stroke-width="3"/><path d="M60 37 Q82 34 88 42 Q74 44 60 40 Z" fill="#b3263a" stroke="${k}" stroke-width="3"/>`,
+    beanie:`<path d="M24 40 Q50 0 76 40 Z" fill="#1f5c45" stroke="${k}" stroke-width="3"/><rect x="22" y="35" width="56" height="9" rx="4" fill="#e9efe9" stroke="${k}" stroke-width="3"/><circle cx="50" cy="12" r="6" fill="#e9efe9" stroke="${k}" stroke-width="3"/>`,
+    crown:`<path d="M30 36 L32 18 L41 28 L50 14 L59 28 L68 18 L70 36 Z" fill="#ffcf3a" stroke="${k}" stroke-width="3" stroke-linejoin="round"/>`,
+    band:`<rect x="24" y="36" width="52" height="8" rx="3" fill="#e2492f" stroke="${k}" stroke-width="2.5"/>`,
+    stache:`<path d="M38 70 Q44 64 50 69 Q56 64 62 70 Q56 74 50 71 Q44 74 38 70 Z" fill="${k}"/>`,
+  }[av.acc] || "";
+  return `<svg class="yak" width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="50" fill="${av.bg}"/>`
+    + `<g stroke="${k}" stroke-width="3" stroke-linejoin="round"><path d="M28 44 Q8 40 10 18 Q18 34 32 36 Z" fill="#fff4dc"/><path d="M72 44 Q92 40 90 18 Q82 34 68 36 Z" fill="#fff4dc"/>`
+    + `<path d="M26 46 Q24 30 50 28 Q76 30 74 46 L76 74 Q50 96 24 74 Z" fill="${fur}"/>`
+    + `<path d="M28 44 L33 52 L38 44 L43 52 L48 44 L53 52 L58 44 L63 52 L68 44 L72 50 Q66 34 50 33 Q32 34 28 44 Z" fill="${dark}"/>`
+    + `<ellipse cx="50" cy="75" rx="17" ry="11" fill="${snout}"/></g>`
+    + `<circle cx="39" cy="57" r="5" fill="#fff"/><circle cx="61" cy="57" r="5" fill="#fff"/><circle cx="40" cy="58" r="2.6" fill="${k}"/><circle cx="62" cy="58" r="2.6" fill="${k}"/>`
+    + `<ellipse cx="44" cy="76" rx="2.4" ry="3.2" fill="${k}"/><ellipse cx="56" cy="76" rx="2.4" ry="3.2" fill="${k}"/>`
+    + acc + `</svg>`;
+}
+function yakEl(id, size){ const s = h("span",{class:"who"}); s.innerHTML = yakSvg(avatarOf(id), size || 28); return s.firstChild; }
+function who(id, size){ const n = personName(id); return n ? h("span",{class:"who"}, yakEl(id, size), n) : h("span",{}, "Ingen"); }
+function yakEditor(id, onDone){
+  const box = h("div",{class:"yakedit"});
+  let av = {...avatarOf(id)};
+  const draw = () => {
+    const prev = h("div",{}); prev.innerHTML = yakSvg(av, 96);
+    const sw = (list, key) => h("div",{class:"swatches"}, ...list.map(c => h("button",{type:"button", "aria-label":c, "aria-pressed": String(av[key]===c), style:`background:${c}`, onclick:()=>{ av = {...av, [key]:c}; draw(); }})));
+    const accs = h("div",{class:"chips"}, ...ACCS.map(([v,l]) => h("button",{class:"chip", type:"button", "aria-pressed": String(av.acc===v), onclick:()=>{ av = {...av, acc:v}; draw(); }}, l)));
+    box.replaceChildren(prev.firstChild, h("div",{style:"display:grid;gap:10px"},
+      h("h3",{},"Päls"), sw(FUR,"fur"), h("h3",{},"Bakgrund"), sw(BGS,"bg"), h("h3",{},"Tillbehör"), accs,
+      h("div",{class:"inline"},
+        h("button",{class:"btn ghost small", type:"button", onclick:()=>{ av = {fur:FUR[Math.random()*FUR.length|0], bg:BGS[Math.random()*BGS.length|0], acc:ACCS[Math.random()*ACCS.length|0][0]}; draw(); }}, "Slumpa"),
+        h("button",{class:"btn small", type:"button", onclick:async()=>{ if (await write(()=>db.doc("people/"+id).update({avatar:av}))) { toast("Din jak är sparad"); onDone && onDone(); } }}, "Spara jak"))));
+  };
+  draw(); return box;
+}
+
+
+const nowIso = () => new Date().toISOString();
+
+/* ---------- startsida: vem är du + budget (bara arrangörer sätter budget) ---------- */
+const PLANNER_ROLES = ["Arrangör","Sammankallande","Kassör"];
+const isPlanner = id => PLANNER_ROLES.includes((S.people.find(p=>p.id===id)||{}).role);
+let welcomeLater = false;
+function renderWelcome(){
+  const w = $("welcome");
+  const need = S.loaded && db && (!personName(me) || (isPlanner(me) && !(S.budget[me] && S.budget[me].max))) && !welcomeLater;
+  w.hidden = !need; if (!need) return;
+  const box = $("welcomeBox");
+  const logo = h("img",{src:"icons/icon-192.png", alt:"", style:"width:96px;height:96px;border-radius:22px;margin:0 auto;display:block"});
+  if (!personName(me)) {
+    const people = [...S.people].sort((a,b)=>(a.name||"").localeCompare(b.name||"","sv"));
+    const nameIn = h("input",{maxlength:60, placeholder:"Ditt namn", "aria-label":"Ditt namn"});
+    box.replaceChildren(logo, h("h1",{},"Välkommen till Jac-a-thon"), h("p",{class:"lead", style:"text-align:center"}, "Jacobs svensexa, en helg i april eller maj 2027. Vem är du?"),
+      h("div",{class:"pick"}, ...people.map(p => h("button",{type:"button", onclick:()=>{ me = p.id; try { localStorage.setItem("svx-me", me); } catch(_){} render(); }}, yakEl(p.id, 40), p.name))),
+      h("div",{class:"panel"}, h("h3",{},"Står du inte med?"), h("form",{class:"inline", onsubmit:async e=>{ e.preventDefault(); const name = nameIn.value.trim(); if (!name) return;
+        let ref; if (await write(async()=>{ ref = await db.collection("people").add({name, contact:"", role:"Deltagare", status:"Kommer", paid:false, createdAt:nowIso()}); })) {
+          if (ref) { me = ref.id; try { localStorage.setItem("svx-me", me); } catch(_){} }  render(); } }}, nameIn, h("button",{class:"btn", type:"submit"},"Lägg till mig"))));
+  } else {
+    const mine = S.budget[me] || {};
+    const pickLevel = async l => { if (await write(()=>db.doc("budget/"+me).set({level:l.id, max:l.max, comment:mine.comment||""}))) { toast("Tack! Ditt budgetval är sparat"); showTab("oversikt"); render(); } };
+    box.replaceChildren(logo, h("h1",{}, `Hej ${personName(me).split(" ")[0]}!`),
+      h("p",{class:"lead", style:"text-align:center"}, "Som arrangör sätter du budgeten. Vad tror du att gänget klarar att lägga på hela helgen? Det inkluderar Jacobs del och 10 % buffert."),
+      h("div",{class:"pick"}, ...LEVELS.map(l => h("button",{type:"button", onclick:()=>pickLevel(l)}, h("span",{}, h("b",{}, l.label), h("small",{}, `upp till ${kr(l.max)} per person`))))),
+      h("p",{class:"lead", style:"text-align:center;font-size:13px"}, "Ingen ser vad just du väljer, bara hur många som valt varje nivå. Arrangörerna landar på den högsta nivån som minst 80 % av er klarar."),
+      h("div",{class:"panel"}, h("h3",{},"Gör din jak (valfritt)"), yakEditor(me)),
+      h("div",{style:"text-align:center"}, h("button",{class:"btn ghost small", type:"button", onclick:()=>{ welcomeLater = true; render(); }}, "Välj budget senare")),
+      h("div",{style:"text-align:center"}, h("button",{class:"btn ghost small", type:"button", onclick:()=>{ me = ""; try { localStorage.removeItem("svx-me"); } catch(_){} render(); }}, `Jag är inte ${personName(me)}`)));
+  }
+}
+
 /* ---------- render ---------- */
 function render(){
   const people = [...S.people].sort((a,b)=>(a.name||"").localeCompare(b.name||"","sv"));
@@ -414,6 +529,11 @@ function render(){
   const pb = $("ePaidBy"); const curPb = pb.value;
   pb.replaceChildren(h("option",{value:""},"Välj person"), ...people.map(p=>h("option",{value:p.id}, p.name)));
   pb.value = curPb || (personName(me) ? me : "");
+  $("meYak").replaceChildren(personName(me) ? yakEl(me, 30) : "");
+  $("myYakPanel").hidden = !personName(me);
+  if (personName(me) && !$("myYak").dataset.for) { $("myYak").dataset.for = me; $("myYak").replaceChildren(yakEditor(me)); }
+  if ($("myYak").dataset.for && $("myYak").dataset.for !== me) { $("myYak").dataset.for = ""; $("myYak").replaceChildren(); }
+  renderWelcome();
   renderStatus(); renderOverview(); renderPeople(people); renderDates(people); renderBudget(people); renderDests(); renderActs(); renderTasks(); renderExpenses(people);
 }
 
@@ -491,7 +611,7 @@ function dateTally(w){
   return {yes, maybe, no, score: yes + maybe*0.5};
 }
 function budgetStats(){
-  const vals = S.people.map(p => (S.budget[p.id]||{}).max).filter(v => typeof v === "number" && v > 0).sort((a,b)=>a-b);
+  const vals = S.people.filter(p => isPlanner(p.id)).map(p => (S.budget[p.id]||{}).max).filter(v => typeof v === "number" && v > 0).sort((a,b)=>a-b);
   if (!vals.length) return null;
   const n = vals.length, mid = Math.floor(n/2);
   const median = n%2 ? vals[mid] : (vals[mid-1]+vals[mid])/2;
@@ -521,7 +641,9 @@ function renderOverview(){
     stat(kr(price), `kalkylerat pris per person vid ${payers} betalande${coming?"":" (antagande)"}`),
     stat(String(open.length), overdue ? `öppna uppgifter, ${overdue} försenade` : "öppna uppgifter"),
   );
-  const next = open.filter(t=>t.due).sort((a,b)=>a.due.localeCompare(b.due)).slice(0,5);
+  const mine = open.filter(t=>t.owner===me).sort((a,b)=>(a.due||"9999").localeCompare(b.due||"9999"));
+  $("ovTasksH").textContent = mine.length ? "Dina uppgifter" : "Närmaste uppgifter";
+  const next = (mine.length ? mine : open.filter(t=>t.due).sort((a,b)=>a.due.localeCompare(b.due))).slice(0,5);
   $("ovTasks").replaceChildren(...(next.length ? next.map(taskRow) : [h("div",{class:"empty"},"Inga öppna uppgifter med deadline.")]));
   const acts = sortedActs().slice(0,3);
   const ds = sortedDests().filter(d=>votesOf(d)).slice(0,3);
@@ -541,7 +663,7 @@ function renderPeople(people){
       write(()=>db.doc("people/"+p.id).delete());
     }}, "Ta bort");
     return h("div",{class:"row"},
-      h("div",{class:"main"}, h("strong",{}, p.name, p.id===me ? " (du)" : ""), h("span",{class:"meta"}, p.contact || "Ingen kontaktuppgift"), pill),
+      yakEl(p.id, 40), h("div",{class:"main"}, h("strong",{}, p.name, p.id===me ? " (du)" : ""), h("span",{class:"meta"}, p.contact || "Ingen kontaktuppgift"), pill),
       sel(ROLES, p.role||"Deltagare", "role"),
       sel(STATUSES, p.status||"Inbjuden", "status"),
       h("label",{style:"display:flex;gap:6px;align-items:center;font-size:13px"}, h("input",{type:"checkbox", style:"width:auto", checked:!!p.paid, onchange:e=>write(()=>db.doc("people/"+p.id).update({paid:e.target.checked}))}), "Förskott betalt"),
@@ -583,7 +705,9 @@ function renderBudget(people){
   $("budgetSummary").replaceChildren(bs
     ? h("p",{}, h("b",{}, `${kr(bs.level80)} klaras av minst 80 %`), ` av de ${bs.n} som svarat.`)
     : h("div",{class:"empty"},"Inga förslag än. Var först."));
-  const votes = people.map(p => S.budget[p.id]).filter(b => b && b.max > 0);
+  const votes = people.filter(p => isPlanner(p.id)).map(p => S.budget[p.id]).filter(b => b && b.max > 0);
+  $("budgetForm").hidden = !isPlanner(me);
+  $("budgetNote").hidden = isPlanner(me);
   const top = Math.max(1, ...LEVELS.map(l => votes.filter(b => b.max === l.max).length));
   $("budgetList").replaceChildren(...LEVELS.map(l => { const n = votes.filter(b => b.max === l.max).length;
     const ok80 = bs && l.max === bs.level80;
@@ -661,28 +785,61 @@ $("destForm").addEventListener("submit", async e => { e.preventDefault(); if (!n
   const title = $("dTitle").value.trim(); if (!title) return;
   const data = {title, travel:$("dTravel").value.trim(), price:$("dPrice").value.trim(), desc:$("dDesc").value.trim(), by:me, votes:{[me]:true}, createdAt:new Date().toISOString()};
   if (await write(()=>db.collection("destinations").add(data))) { e.target.reset(); toast("Resmålet är tillagt"); } });
+const isLate = t => t.status!=="Klar" && t.due && t.due < today();
 function taskRow(t){
-  const late = t.status!=="Klar" && t.due && t.due < today();
-  return h("div",{class:"row"+(t.status==="Klar"?" done":"")},
+  const late = isLate(t), done = t.status === "Klar";
+  const assign = async owner => {
+    if (owner === (t.owner||"")) return;
+    await write(()=>db.doc("tasks/"+t.id).update({owner, by:me||""})); };
+  const toggle = async () => { const nd = !done;
+    await write(()=>db.doc("tasks/"+t.id).update({status: nd ? "Klar" : "Att göra", doneAt: nd ? nowIso() : "", doneBy: nd ? (me||"") : ""})); };
+  let armed = false;
+  const del = h("button",{class:"btn danger small", type:"button", onclick:()=>{
+    if (!armed){ armed = true; del.textContent = "Säker?"; setTimeout(()=>{armed=false; del.textContent="Ta bort";},3000); return; }
+    write(()=>db.doc("tasks/"+t.id).delete()); }}, "Ta bort");
+  const people = [...S.people].sort((a,b)=>(a.name||"").localeCompare(b.name||"","sv"));
+  return h("div",{class:"row"+(done?" done":"")},
+    t.owner && personName(t.owner) ? yakEl(t.owner, 36) : null,
     h("div",{class:"main"}, h("strong",{}, t.title),
-      h("span",{class:"meta"}, h("span",{class: late ? "overdue" : ""}, t.due ? `Deadline ${fmtDate(t.due)}${late?" (försenad)":""}` : "Ingen deadline"), " · ", t.owner && personName(t.owner) ? personName(t.owner) : "Ingen ansvarig")),
-    h("select",{"aria-label":"Ansvarig", onchange:e=>write(()=>db.doc("tasks/"+t.id).update({owner:e.target.value}))},
-      h("option",{value:""},"Ingen ansvarig"), ...[...S.people].sort((a,b)=>(a.name||"").localeCompare(b.name||"","sv")).map(p=>h("option",{value:p.id, selected:p.id===t.owner}, p.name))),
-    h("select",{"aria-label":"Status", onchange:e=>write(()=>db.doc("tasks/"+t.id).update({status:e.target.value}))}, ...TASK_STATUS.map(s=>h("option",{selected:s===(t.status||"Att göra")},s))));
+      h("span",{class:"meta"}, h("span",{class: late ? "overdue" : ""}, t.due ? `Deadline ${fmtDate(t.due)}${late?" (försenad)":""}` : "Ingen deadline"),
+        " · ", t.owner && personName(t.owner) ? personName(t.owner) : "Ingen ansvarig",
+        t.by && personName(t.by) && t.by !== t.owner ? ` · från ${personName(t.by)}` : "",
+        done && t.doneAt ? ` · klar ${fmtDate(t.doneAt.slice(0,10))}` : "")),
+    !t.owner && !done && personName(me) ? h("button",{class:"btn small", type:"button", onclick:()=>assign(me)}, "Ta den") : null,
+    h("button",{class: done ? "btn ghost small" : "btn small", type:"button", onclick:toggle}, done ? "Ångra klar" : "Klar ✓"),
+    h("select",{"aria-label":"Ansvarig", onchange:e=>assign(e.target.value)},
+      h("option",{value:""},"Ingen ansvarig"), ...people.map(p=>h("option",{value:p.id, selected:p.id===t.owner}, p.name))),
+    h("input",{type:"date", "aria-label":"Deadline", value:t.due||"", onchange:e=>write(()=>db.doc("tasks/"+t.id).update({due:e.target.value}))}),
+    del);
 }
+let taskFilter = "open"; try { taskFilter = localStorage.getItem("svx-taskf") || "open"; } catch(e) {}
+$("taskFilter").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; taskFilter = b.dataset.f; try { localStorage.setItem("svx-taskf", taskFilter); } catch(_){} renderTasks(); });
 function renderTasks(){
-  let ts = [...S.tasks];
-  if ($("onlyMine").checked) ts = ts.filter(t=>t.owner===me);
-  if ($("hideDone").checked) ts = ts.filter(t=>t.status!=="Klar");
-  ts.sort((a,b)=>(a.status==="Klar")-(b.status==="Klar") || (a.due||"9999").localeCompare(b.due||"9999"));
-  $("tasks").replaceChildren(...(ts.length ? ts.map(taskRow) : [h("div",{class:"empty"}, S.loaded ? "Inga uppgifter här." : "Laddar uppgifter…")]));
+  for (const b of $("taskFilter").children) b.setAttribute("aria-pressed", String(b.dataset.f === taskFilter));
+  const all = S.tasks, done = all.filter(t=>t.status==="Klar"), late = all.filter(isLate);
+  const mineOpen = all.filter(t=>t.owner===me && t.status!=="Klar");
+  const stat = (big, small) => h("div",{class:"stat"}, h("b",{},big), h("span",{},small));
+  $("taskStats").replaceChildren(
+    stat(`${done.length} / ${all.length}`, "uppgifter klara"),
+    stat(String(late.length), late.length ? "försenade, ta tag i dem" : "försenade"),
+    stat(String(mineOpen.length), personName(me) ? "öppna uppgifter för dig" : "välj dig själv för att se dina"),
+    stat(String(all.filter(t=>!t.owner && t.status!=="Klar").length), "utan ansvarig"));
+  $("taskBadge").hidden = !mineOpen.some(isLate); $("taskBadge").textContent = mineOpen.filter(isLate).length;
+  const f = {mine: t=>t.owner===me, open: t=>t.status!=="Klar", late: isLate, free: t=>!t.owner && t.status!=="Klar", done: t=>t.status==="Klar"}[taskFilter] || (()=>true);
+  const ts = all.filter(f).sort((a,b)=>(a.status==="Klar")-(b.status==="Klar") || (a.due||"9999").localeCompare(b.due||"9999"));
+  const soon = new Date(Date.now() + 14*864e5).toLocaleDateString("sv-SE");
+  const groups = [["Försenade", t=>isLate(t), "late"], ["Kommande två veckor", t=>t.status!=="Klar" && t.due && t.due <= soon && !isLate(t)], ["Senare", t=>t.status!=="Klar" && t.due && t.due > soon], ["Utan deadline", t=>t.status!=="Klar" && !t.due], ["Klara", t=>t.status==="Klar"]];
+  const out = [];
+  for (const [label, g, cls] of groups) { const xs = ts.filter(g); if (!xs.length) continue; out.push(h("div",{class:"group-h" + (cls ? " "+cls : "")}, `${label} (${xs.length})`), ...xs.map(taskRow)); }
+  $("tasks").replaceChildren(...(out.length ? out : [h("div",{class:"empty"}, S.loaded ? (taskFilter==="mine" && !personName(me) ? "Välj dig själv uppe till höger." : "Inga uppgifter här.") : "Laddar uppgifter…")]));
 }
 let ownerTouched = false;
 $("tOwner").addEventListener("change", () => { ownerTouched = true; });
-$("onlyMine").addEventListener("change", renderTasks); $("hideDone").addEventListener("change", renderTasks);
 $("taskForm").addEventListener("submit", async e => { e.preventDefault();
   const title = $("tTitle").value.trim(); if (!title) return;
-  if (await write(()=>db.collection("tasks").add({title, owner:$("tOwner").value, due:$("tDue").value, status:"Att göra", createdAt:new Date().toISOString()}))) { $("tTitle").value=""; $("tDue").value=""; ownerTouched = false; toast("Uppgiften är tillagd"); } });
+  const owner = $("tOwner").value;
+  if (await write(()=>db.collection("tasks").add({title, owner, by:me||"", due:$("tDue").value, status:"Att göra", createdAt:nowIso()}))) {
+    $("tTitle").value=""; $("tDue").value=""; ownerTouched = false; toast("Uppgiften är tillagd"); } });
 
 $("personForm").addEventListener("submit", async e => { e.preventDefault();
   const name = $("pName").value.trim(); if (!name) return;
@@ -706,7 +863,7 @@ if (groupCode) { try { localStorage.setItem(CODE_KEY, groupCode); } catch(e){} }
 else { try { groupCode = localStorage.getItem(CODE_KEY) || ""; } catch(e){} }
 function inviteLink(){ return location.origin + location.pathname + "#k=" + groupCode; }
 
-const FB = window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.projectId ? window.FIREBASE_CONFIG : null;
+const FB = !/[?&]demo\b/.test(location.search) && window.FIREBASE_CONFIG && window.FIREBASE_CONFIG.projectId ? window.FIREBASE_CONFIG : null;
 
 async function firebaseDb(cfg, root){
   const base = "https://www.gstatic.com/firebasejs/10.12.2/";
@@ -718,6 +875,8 @@ async function firebaseDb(cfg, root){
     collection: name => ({
       onSnapshot: (cb, err) => F.onSnapshot(F.collection(fs, p(name)), s => cb({docs: s.docs.map(d => ({id:d.id, data:() => d.data()}))}), err),
       add: data => F.addDoc(F.collection(fs, p(name)), data),
+      recent: (field, n) => ({ onSnapshot: (cb, err) => F.onSnapshot(F.query(F.collection(fs, p(name)), F.orderBy(field, "desc"), F.limit(n)),
+        s => cb({docs: s.docs.map(d => ({id:d.id, data:() => d.data()}))}), err) }),
     }),
     doc: path => { const r = F.doc(fs, p(path)); return {
       onSnapshot: (cb, err) => F.onSnapshot(r, s => cb({exists:s.exists(), fromCache:s.metadata.fromCache, data:() => s.data()}), err),
@@ -738,6 +897,7 @@ function localDb(root){
     collection: name => ({
       onSnapshot: cb => listen(() => cb({docs: Object.entries(coll(name)).map(([id, d]) => ({id, data:() => clone(d)}))})),
       add: async data => { const id = Math.random().toString(36).slice(2, 12); coll(name)[id] = clone(data); save(); return {id}; },
+      recent: (field, n) => ({ onSnapshot: cb => listen(() => cb({docs: Object.entries(coll(name)).sort((a, b) => String(b[1][field]).localeCompare(String(a[1][field]))).slice(0, n).map(([id, d]) => ({id, data:() => clone(d)}))})) }),
     }),
     doc: path => { const [c, id] = path.split("/"); return {
       onSnapshot: cb => listen(() => { const d = coll(c)[id]; cb({exists:!!d, fromCache:false, data:() => d && clone(d)}); }),
