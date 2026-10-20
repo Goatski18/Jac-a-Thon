@@ -168,16 +168,19 @@ function openOrgBox(){
   const close = h("button",{class:"btn ghost small", type:"button", onclick:()=>{ $("orgBox").hidden = true; }}, "Avbryt");
   if (!created) {
     newPin = newPin || makePin();
+    const pinIn = h("input",{value:newPin, autocomplete:"off", autocapitalize:"characters", spellcheck:false, style:"font:800 24px var(--display);letter-spacing:.06em;text-align:center", oninput:e=>{ newPin = e.target.value; }});
     box.replaceChildren(h("h2",{},"Skapa arrangörsläget"),
       h("p",{}, "Arrangörsläget har planeringen: budget, koncept, aktiviteter, uppgifter och helgens hemliga schema. Det skyddas av en PIN-kod som deltagarna inte har."),
-      h("div",{class:"panel", style:"text-align:center"}, h("h3",{},"Er PIN-kod"), h("b",{style:"font:800 30px var(--display);letter-spacing:.06em"}, newPin)),
+      h("div",{class:"panel"}, h("label",{}, "Er PIN-kod (byt gärna till en egen)", pinIn)),
       h("p",{class:"lead"}, "Spara den nu och skicka den bara till arrangörerna, inte i gruppchatten med alla. Den går inte att visa igen."),
-      h("div",{class:"inline"}, h("button",{class:"btn", type:"button", onclick:async e=>{ e.target.disabled = true; e.target.textContent = "Skapar…";
-        try { if (await unlockOrg(newPin, true)) { $("orgBox").hidden = true; toast("Arrangörsläget är skapat"); showTab("oversikt"); } }
+      h("div",{class:"inline"}, h("button",{class:"btn", type:"button", onclick:async e=>{
+        const pin = pinIn.value; if (normPin(pin).length < 4) { toast("PIN-koden måste ha minst 4 tecken"); return; }
+        e.target.disabled = true; e.target.textContent = "Skapar…";
+        try { if (await unlockOrg(pin, true)) { $("orgBox").hidden = true; toast("Arrangörsläget är skapat"); showTab("oversikt"); } }
         catch(err){ console.error(err); toast("Kunde inte skapa arrangörsläget. Kolla nätet."); }
         e.target.disabled = false; e.target.textContent = "Jag har sparat koden, skapa"; }}, "Jag har sparat koden, skapa"), close));
   } else {
-    const pin = h("input",{autocomplete:"off", autocapitalize:"characters", spellcheck:false, placeholder:"XXXXX-XXXXX", "aria-label":"PIN-kod"});
+    const pin = h("input",{autocomplete:"off", autocapitalize:"characters", spellcheck:false, placeholder:"PIN-kod", inputmode:"text", "aria-label":"PIN-kod"});
     box.replaceChildren(h("h2",{},"Arrangörsläge"), h("p",{}, "Skriv PIN-koden du fått av de andra arrangörerna."),
       h("form",{class:"inline", onsubmit:async e=>{ e.preventDefault(); if (await unlockOrg(pin.value, false)) { $("orgBox").hidden = true; toast("Välkommen, arrangör"); showTab("oversikt"); } }}, pin, h("button",{class:"btn", type:"submit"}, "Lås upp")), close);
   }
