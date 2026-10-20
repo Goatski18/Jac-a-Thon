@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // All data ligger under g/<gruppkod>/. Koden är hemlig och står bara i inbjudningslänken,
+    // och g/ går inte att lista, så utan koden kommer man inte åt något.
+    match /g/{code}/{coll}/{id} {
+      allow read: if code.size() >= 20
+        && coll in ['people','datevotes','budget','activities','destinations','tasks','expenses','settings'];
+      allow write: if code.size() >= 20
+        && coll in ['people','datevotes','budget','activities','destinations','tasks','expenses','settings']
+        && (request.resource == null || request.resource.data.size() <= 30);
+    }
+  }
+}
