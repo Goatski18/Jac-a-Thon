@@ -24,15 +24,18 @@ const NEXT_VOTE = {"":"yes", yes:"maybe", maybe:"no", no:""};
 const STATUSES = ["Ej inbjuden","Inbjuden","Kommer","Kanske","Kan inte"];
 const ROLES = ["Deltagare","Arrangör","Sammankallande","Kassör"];
 const TASK_STATUS = ["Att göra","Pågår","Klar"];
-const LEVELS = [
-  {id:"enkel", label:"Enkel", max:2500},
-  {id:"mellan", label:"Mellan", max:5500},
-  {id:"lyx", label:"Lyx", max:9500},
-];
+// Reglaget: var och en sätter sitt exakta tak. Gamla nivåval (Enkel/Mellan/Lyx) har redan ett belopp i max och gäller som det.
+const B_MIN = 1000, B_MAX = 15000, B_STEP = 250, B_START = 5500;
+function budgetSlider(val){
+  const out = h("b",{}, kr(val || B_START));
+  const r = h("input",{type:"range", min:B_MIN, max:B_MAX, step:B_STEP, value:val || B_START, "aria-label":"Mitt budgettak i kronor", oninput:e=>{ out.textContent = kr(+e.target.value); }});
+  return {el: h("div",{class:"slider"}, out, r, h("div",{class:"ends"}, h("span",{}, kr(B_MIN)), h("span",{}, kr(B_MAX)))), value: () => +r.value, input: r};
+}
 const DEFAULT_CALC = {lodging:25000, food:1200, act:600, trans:0, buf:10, groom:1};
 
 const S = {people:[], datevotes:{}, budget:{}, acts:[], dests:[], tasks:[], expenses:[], calc:{...DEFAULT_CALC}, loaded:false,
-  orgLoaded:false, meta:{}, news:[], schedule:[], orgSchedule:[], cars:[], rooms:[], practical:{}, diet:{}};
+  orgLoaded:false, meta:{}, news:[], schedule:[], orgSchedule:[], cars:[], rooms:[], practical:{}, diet:{},
+  teasers:[], orgTeasers:[], grenar:[], resultat:[]};
 let db = null; // router till gruppdel/arrangörsdel, false om datan inte går att nå
 let me = ""; try { me = localStorage.getItem("svx-me") || ""; } catch(e) {}
 
@@ -76,7 +79,7 @@ async function write(fn){
 }
 
 /* ---------- tabs ---------- */
-const TABS = ["hem","oversikt","uppgifter","datum","budget","resmal","aktiviteter","helgen","utlagg","deltagare"];
+const TABS = ["hem","oversikt","uppgifter","datum","budget","resmal","aktiviteter","helgen","utlagg","topp","deltagare"];
 let curTab = "hem", wantTab = "hem";
 function showTab(t){ wantTab = t; try { localStorage.setItem("svx-tab", t); } catch(e) {} applyTab(); }
 function applyTab(){
@@ -147,7 +150,7 @@ const nowIso = () => new Date().toISOString();
 /* ---------- lägen och flikar ----------
    Deltagare: bara Hem under planeringen, Hem/Helgen/Utlägg/Deltagare när helgläget är på.
    Arrangörer (med PIN): allt. */
-const TAB_SCOPE = {hem:"all", oversikt:"org", uppgifter:"org", datum:"org", budget:"org", resmal:"org", aktiviteter:"org", helgen:"live", utlagg:"live", deltagare:"live"};
+const TAB_SCOPE = {hem:"all", oversikt:"org", uppgifter:"org", datum:"org", budget:"org", resmal:"org", aktiviteter:"org", helgen:"live", utlagg:"live", topp:"live", deltagare:"live"};
 const isLive = () => (S.meta || {}).phase === "live";
 const tabVisible = t => { const sc = TAB_SCOPE[t]; return sc === "all" || isOrg() || (sc === "live" && isLive()); };
 function renderTabs(){
@@ -211,12 +214,15 @@ function renderHem(){
     : [h("div",{class:"empty"}, "Inga nyheter än. Arrangörerna skriver här när något händer.")]));
   // läge
   const sd = meta.startDate ? new Date(meta.startDate+"T12:00").toLocaleDateString("sv-SE",{day:"numeric", month:"long", year:"numeric"}) : "";
-  if (!isLive()) $("hemPhase").replaceChildren(h("h2",{}, "Kommer snart"),
+  const left = meta.startDate ? Math.round((new Date(meta.startDate+"T00:00") - new Date(today()+"T00:00")) / 864e5) : null;
+  const countdown = left > 0 ? h("div",{style:"display:flex;gap:10px;align-items:baseline"}, h("span",{class:"count"}, String(left)), h("strong",{}, left === 1 ? "dag kvar" : "dagar kvar")) : null;
+  if (!isLive()) $("hemPhase").replaceChildren(h("h2",{}, "Kommer snart"), countdown,
     h("p",{}, sd ? `Jac-a-thon börjar fredag ${sd}. Arrangörerna planerar för fullt och lägger ut schema och praktisk info här när det närmar sig.` : "Arrangörerna planerar för fullt. Schema och praktisk info dyker upp här när det närmar sig. Säg inget till Jacob."));
   else { const {cur, next} = nowNext(S.schedule || []);
     const line = (label, it) => it ? h("div",{class:"row"}, h("div",{class:"main"}, h("h3",{}, label), h("strong",{}, `${it.time} ${it.title}`), it.place ? h("a",{href: it.map || mapLink(it.place), target:"_blank", rel:"noopener"}, it.place) : null)) : null;
-    $("hemPhase").replaceChildren(h("h2",{}, "Helgen"), cur || next ? h("div",{class:"rows"}, line("Nu", cur), line("Sedan", next)) : h("p",{class:"lead"}, sd ? `Fredag ${sd}. Hela schemat finns under Helgen.` : "Hela schemat finns under Helgen."),
+    $("hemPhase").replaceChildren(h("h2",{}, "Helgen"), countdown, cur || next ? h("div",{class:"rows"}, line("Nu", cur), line("Sedan", next)) : h("p",{class:"lead"}, sd ? `Fredag ${sd}. Hela schemat finns under Helgen.` : "Hela schemat finns under Helgen."),
       h("div",{class:"inline"}, h("button",{class:"btn small", type:"button", onclick:()=>showTab("helgen")}, "Schema och praktiskt"))); }
+  renderTeasers();
   const photo = meta.photoUrl || PHOTO_URL;
   $("hemPhoto").replaceChildren(h("a",{class:"btn ghost", href:photo, target:"_blank", rel:"noopener"}, "Öppna fotoalbumet"), h("span",{class:"meta"}, " Ladda upp bilder från helgen här."));
   // jag
@@ -237,6 +243,34 @@ $("metaForm").addEventListener("submit", e => e.preventDefault());
 $("newsForm").addEventListener("submit", async e => { e.preventDefault();
   const text = $("newsText").value.trim(); if (!text) return;
   if (await write(()=>gdb.doc("news/"+newId()).set({text, by:me||"", at:nowIso()}))) { $("newsText").value = ""; toast("Nyheten är publicerad"); } });
+/* Teasers: arrangörerna skriver dem i arrangörsdelen och släpper en i taget. Släppta kopieras till gruppdelen. */
+const teaserSort = (a,b) => (a.order||0) - (b.order||0) || (a.at||"").localeCompare(b.at||"");
+async function releaseTeaser(t, rel){
+  const {id, ...data} = t; data.released = rel; data.releasedAt = rel ? nowIso() : "";
+  await write(async()=>{ await odb.doc("teasers/"+id).set(data); if (rel) await gdb.doc("teasers/"+id).set(data); else await gdb.doc("teasers/"+id).delete(); });
+}
+function renderTeasers(){
+  const org = isOrg();
+  if (!org) { const ts = [...(S.teasers||[])].sort((a,b)=>(b.releasedAt||"").localeCompare(a.releasedAt||""));
+    $("teaserPanel").hidden = !ts.length;
+    $("teaserList").replaceChildren(...ts.map((t, i) => h("div",{class:"row" + (i ? "" : " hl")}, h("div",{class:"main"}, h("span",{style:"white-space:pre-wrap"}, t.text), h("span",{class:"meta"}, fmtTime(t.releasedAt))))));
+    return; }
+  $("teaserPanel").hidden = false;
+  const ts = [...(S.orgTeasers||[])].sort(teaserSort);
+  const next = ts.find(t => !t.released);
+  $("teaserList").replaceChildren(
+    ...(ts.length ? ts.map(t => h("div",{class:"row"}, h("div",{class:"main"}, h("span",{style:"white-space:pre-wrap"}, t.text),
+        h("span",{class: t.released ? "pill" : "pill warn"}, t.released ? "Släppt " + fmtTime(t.releasedAt) : "Hemlig")),
+      h("button",{class:"btn ghost small", type:"button", onclick:()=>releaseTeaser(t, !t.released)}, t.released ? "Dölj" : "Släpp"),
+      h("button",{class:"btn danger small", type:"button", onclick:()=>{ if (confirm("Ta bort teasern?")) write(async()=>{ await odb.doc("teasers/"+t.id).delete(); await gdb.doc("teasers/"+t.id).delete(); }); }}, "Ta bort")))
+      : [h("div",{class:"empty"}, "Inga teasers än. Skriv några nedan och släpp en i taget fram till helgen.")]),
+    next ? h("div",{class:"inline"}, h("button",{class:"btn small", type:"button", onclick:()=>releaseTeaser(next, true)}, "Släpp nästa teaser")) : null);
+}
+$("teaserForm").addEventListener("submit", async e => { e.preventDefault();
+  const text = $("teaserText").value.trim(); if (!text) return;
+  const order = Math.max(0, ...(S.orgTeasers||[]).map(t => t.order||0)) + 1;
+  if (await write(()=>odb.doc("teasers/"+newId()).set({text, order, released:false, releasedAt:"", by:me||"", at:nowIso()}))) { $("teaserText").value = ""; toast("Teasern är sparad, släpp den när ni vill"); } });
+
 $("phoneForm").addEventListener("submit", async e => { e.preventDefault(); if (!needMe()) return;
   if (await write(()=>gdb.doc("people/"+me).update({contact:$("myPhone").value.trim()}))) toast("Sparat"); });
 const fmtTime = iso => { if (!iso) return ""; const d = new Date(iso); const sameDay = d.toDateString() === new Date().toDateString();
@@ -356,13 +390,14 @@ function renderWelcome(){
           me = id; try { localStorage.setItem("svx-me", me); } catch(_){} render(); } }}, nameIn, h("button",{class:"btn", type:"submit"},"Lägg till mig"))));
   } else {
     const mine = S.budget[me] || {};
-    const pickLevel = async l => { if (await write(()=>db.doc("budget/"+me).set({level:l.id, max:l.max, comment:mine.comment||""}))) { toast("Tack! Ditt budgetval är sparat"); showTab("oversikt"); render(); } };
+    const sl = budgetSlider(mine.max);
+    const saveBudget = async () => { if (await write(()=>db.doc("budget/"+me).set({max:sl.value(), comment:mine.comment||""}))) { toast("Tack! Ditt budgettak är sparat"); showTab("oversikt"); render(); } };
     box.replaceChildren(logo, h("h1",{}, `Hej ${personName(me).split(" ")[0]}!`),
       h("p",{class:"lead", style:"text-align:center"}, "Som arrangör sätter du budgeten. Vad tror du att gänget klarar att lägga på hela helgen? Det inkluderar Jacobs del och 10 % buffert."),
-      h("div",{class:"pick"}, ...LEVELS.map(l => h("button",{type:"button", onclick:()=>pickLevel(l)}, h("span",{}, h("b",{}, l.label), h("small",{}, `upp till ${kr(l.max)} per person`))))),
-      h("p",{class:"lead", style:"text-align:center;font-size:13px"}, "Ingen ser vad just du väljer, bara hur många som valt varje nivå. Arrangörerna landar på den högsta nivån som minst 80 % av er klarar."),
+      h("div",{class:"panel"}, sl.el, h("div",{style:"text-align:center;margin-top:8px"}, h("button",{class:"btn", type:"button", onclick:saveBudget}, "Spara mitt tak"))),
+      h("p",{class:"lead", style:"text-align:center;font-size:13px"}, "Ingen ser vad just du väljer, bara fördelningen. Arrangörerna landar på det högsta taket som minst 80 % av er klarar."),
       h("div",{class:"panel"}, h("h3",{},"Gör din jak (valfritt)"), yakEditor(me)),
-      h("div",{style:"text-align:center"}, h("button",{class:"btn ghost small", type:"button", onclick:()=>{ welcomeLater = true; render(); }}, "Välj budget senare")),
+      h("div",{style:"text-align:center"}, h("button",{class:"btn ghost small", type:"button", onclick:()=>{ welcomeLater = true; render(); }}, "Sätt budget senare")),
       h("div",{style:"text-align:center"}, h("button",{class:"btn ghost small", type:"button", onclick:()=>{ me = ""; try { localStorage.removeItem("svx-me"); } catch(_){} render(); }}, `Jag är inte ${personName(me)}`)));
   }
 }
@@ -383,9 +418,52 @@ function render(){
   if (personName(me) && !$("myYak").dataset.for) { $("myYak").dataset.for = me; $("myYak").replaceChildren(yakEditor(me)); }
   if ($("myYak").dataset.for && $("myYak").dataset.for !== me) { $("myYak").dataset.for = ""; $("myYak").replaceChildren(); }
   renderTabs(); renderWelcome();
-  renderStatus(); renderHem(); renderHelgen(); renderPeople(people); renderExpenses(people);
+  renderStatus(); renderHem(); renderHelgen(); renderPeople(people); renderExpenses(people); renderTopp(people);
   if (isOrg()) { renderOverview(); renderDates(people); renderBudget(people); renderDests(); renderActs(); renderTasks(); }
 }
+
+/* Topplista: arrangörerna skapar grenar, alla rapporterar. Bästa resultatet per person räknas. */
+const MEDALS = ["🥇","🥈","🥉"];
+function grenRanking(g){
+  const low = g.better === "low", best = {};
+  for (const r of S.resultat.filter(r => r.gren === g.id)) { const b = best[r.person];
+    if (!b || (low ? r.value < b.value : r.value > b.value)) best[r.person] = r; }
+  return Object.values(best).sort((a,b) => low ? a.value - b.value : b.value - a.value);
+}
+function renderTopp(people){
+  const gs = [...S.grenar].sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
+  const gsel = $("scGren"), gcur = gsel.value;
+  gsel.replaceChildren(...(gs.length ? gs.map(g => h("option",{value:g.id}, g.title)) : [h("option",{value:""}, "Inga grenar än")]));
+  if (gs.some(g => g.id === gcur)) gsel.value = gcur;
+  const wsel = $("scWho"), wcur = wsel.value;
+  wsel.replaceChildren(...people.map(p => h("option",{value:p.id}, p.name)));
+  wsel.value = wcur || (personName(me) ? me : "");
+  const fmtVal = (g, v) => `${String(v).replace(".", ",")}${g.unit ? " " + g.unit : ""}`;
+  $("toppList").replaceChildren(...(gs.length ? gs.map(g => {
+    const rank = grenRanking(g);
+    const recent = S.resultat.filter(r => r.gren === g.id).sort((a,b)=>(b.at||"").localeCompare(a.at||"")).slice(0, 3);
+    return h("div",{class:"panel"}, h("h3",{}, g.title, g.better === "low" ? " (lägst vinner)" : ""),
+      h("div",{class:"rows"}, ...(rank.length ? rank.map((r, i) => h("div",{class:"row" + (r.person === me ? " hl" : "")}, h("span",{style:"font-size:22px;width:28px;text-align:center"}, MEDALS[i] || String(i+1)),
+          yakEl(r.person, 32), h("div",{class:"main"}, h("strong",{}, personName(r.person) || "Okänd"), r.note ? h("span",{class:"meta"}, r.note) : null), h("b",{}, fmtVal(g, r.value))))
+        : [h("div",{class:"empty"}, "Inga resultat än.")])),
+      recent.length ? h("details",{}, h("summary",{style:"font-size:13px;color:var(--muted);cursor:pointer"}, "Senaste rapporterna"),
+        h("div",{class:"rows"}, ...recent.map(r => h("div",{class:"row"}, h("div",{class:"main"}, h("span",{}, `${personName(r.person) || "Okänd"}: ${fmtVal(g, r.value)}`),
+          h("span",{class:"meta"}, `rapporterat av ${personName(r.by) || "någon"} · ${fmtTime(r.at)}`)),
+          r.by === me || isOrg() ? h("button",{class:"btn danger small", type:"button", onclick:()=>{ if (confirm("Ta bort resultatet?")) write(()=>gdb.doc("resultat/"+r.id).delete()); }}, "Ta bort") : null)))) : null,
+      isOrg() ? h("div",{class:"inline"}, h("button",{class:"btn danger small", type:"button", onclick:()=>{ if (confirm(`Ta bort grenen ${g.title} och alla dess resultat?`)) write(async()=>{
+          await Promise.all(S.resultat.filter(r => r.gren === g.id).map(r => gdb.doc("resultat/"+r.id).delete())); await gdb.doc("grenar/"+g.id).delete(); }); }}, "Ta bort gren")) : null);
+  }) : [h("div",{class:"empty"}, isOrg() ? "Inga grenar än. Skapa den första längst ner." : "Arrangörerna har inte skapat några grenar än.")]));
+}
+$("scoreForm").addEventListener("submit", async e => { e.preventDefault(); if (!needMe()) return;
+  const gren = $("scGren").value, person = $("scWho").value, value = parseFloat(String($("scVal").value).replace(",", "."));
+  if (!gren) { toast("Det finns ingen gren att rapportera i än"); return; }
+  if (!person || !isFinite(value)) { toast("Välj vem och fyll i ett resultat"); return; }
+  const data = {gren, person, value, note:$("scNote").value.trim(), by:me, at:nowIso()};
+  $("scVal").value = ""; $("scNote").value = "";
+  if (await write(()=>gdb.doc("resultat/"+newId()).set(data))) toast("Resultatet är rapporterat"); });
+$("grenForm").addEventListener("submit", async e => { e.preventDefault();
+  const title = $("gTitle").value.trim(); if (!title) return;
+  if (await write(()=>gdb.doc("grenar/"+newId()).set({title, unit:$("gUnit").value.trim(), better:$("gBetter").value, by:me||"", createdAt:nowIso()}))) { e.target.reset(); toast("Grenen är skapad"); } });
 
 /* Utlägg: varje utlägg delas lika på dem som valts (standard: alla med status Kommer, gruppen bär Jacobs del).
    Borttagna utlägg ligger kvar med deleted-flagga så att de kan återställas. */
@@ -573,22 +651,25 @@ function renderDates(people){
     })));
 }
 
+let budgetSl = null, budgetDirty = false;
 function renderBudget(people){
   const bs = budgetStats();
   const mine = S.budget[me] || {};
-  $("bLevels").replaceChildren($("bLevels").firstElementChild || h("legend"), ...LEVELS.map(l => h("label",{style:"display:flex;gap:8px;align-items:center;font-size:15px"},
-    h("input",{type:"radio", name:"bLevel", value:l.id, style:"width:auto", checked: mine.level ? mine.level===l.id : mine.max===l.max}), h("b",{}, l.label), ` upp till ${kr(l.max)}`)));
+  if (!budgetSl || (!budgetDirty && budgetSl.value() !== (mine.max || B_START))) { budgetSl = budgetSlider(mine.max); budgetSl.input.addEventListener("input", () => { budgetDirty = true; }); $("bSlider").replaceChildren(h("span",{style:"font-size:13px;color:var(--muted)"}, "Mitt tak för hela helgen, per person"), budgetSl.el); }
   if (document.activeElement !== $("bComment")) $("bComment").value = mine.comment || "";
   $("budgetSummary").replaceChildren(bs
-    ? h("p",{}, h("b",{}, `${kr(bs.level80)} klaras av minst 80 %`), ` av de ${bs.n} som svarat.`)
+    ? h("p",{}, h("b",{}, `${kr(bs.level80)} klaras av minst 80 %`), ` av de ${bs.n} som svarat. Spann ${kr(bs.min)}–${kr(bs.max)}, median ${kr(bs.median)}.`)
     : h("div",{class:"empty"},"Inga förslag än. Var först."));
   const votes = people.filter(p => isPlanner(p.id)).map(p => S.budget[p.id]).filter(b => b && b.max > 0);
   $("budgetForm").hidden = !isPlanner(me);
   $("budgetNote").hidden = isPlanner(me);
-  const top = Math.max(1, ...LEVELS.map(l => votes.filter(b => b.max === l.max).length));
-  $("budgetList").replaceChildren(...LEVELS.map(l => { const n = votes.filter(b => b.max === l.max).length;
-    const ok80 = bs && l.max === bs.level80;
-    return h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{}, `${l.label}, upp till ${kr(l.max)}: ${n} st`), ok80 ? h("span",{class:"pill"}, "Högsta nivån som minst 80 % klarar") : null,
+  // fördelning i spann om 1 000 kr, utan namn
+  const bins = {}; for (const b of votes) { const lo = Math.floor((b.max-1)/1000)*1000; bins[lo] = (bins[lo]||0) + 1; }
+  const keys = Object.keys(bins).map(Number).sort((a,b)=>a-b);
+  const top = Math.max(1, ...Object.values(bins));
+  $("budgetList").replaceChildren(...keys.map(lo => { const n = bins[lo];
+    const ok80 = bs && bs.level80 > lo && bs.level80 <= lo+1000;
+    return h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{}, `${kr(lo+1)}–${kr(lo+1000)}: ${n} st`), ok80 ? h("span",{class:"pill"}, "Här ligger 80 %-taket") : null,
       h("div",{class:"bar"}, h("i",{style:`width:${Math.round(n/top*100)}%`}))));
   }), ...votes.filter(b => b.comment).map(b => h("div",{class:"row"}, h("div",{class:"main"}, h("span",{class:"meta"}, `"${b.comment}"`)))));
   // kalkyl
@@ -606,9 +687,8 @@ function renderBudget(people){
     })));
 }
 $("budgetForm").addEventListener("submit", async e => { e.preventDefault(); if (!needMe()) return;
-  const lv = LEVELS.find(l => l.id === (document.querySelector('input[name="bLevel"]:checked')||{}).value);
-  if (!lv) { toast("Välj en nivå först"); return; }
-  if (await write(()=>db.doc("budget/"+me).set({level:lv.id, max:lv.max, comment:$("bComment").value.trim()}))) toast("Ditt budgetval är sparat"); });
+  const max = budgetSl ? budgetSl.value() : B_START;
+  if (await write(()=>db.doc("budget/"+me).set({max, comment:$("bComment").value.trim()}))) { budgetDirty = false; toast("Ditt budgettak är sparat"); } });
 let calcTimer;
 $("calcForm").addEventListener("change", () => { clearTimeout(calcTimer); calcTimer = setTimeout(()=>{
   const next = {lodging:+$("cLodging").value||0, food:+$("cFood").value||0, act:+$("cAct").value||0, trans:+$("cTrans").value||0, buf:+$("cBuf").value||0, groom:+$("cGroom").value};
@@ -906,7 +986,7 @@ function lockOrg(){ try { localStorage.removeItem(ORG_KEY + ":" + groupCode); } 
 let onErr;
 let orgPending = 0;
 function listenOrg(){
-  orgPending = 6; S.orgLoaded = false;
+  orgPending = 7; S.orgLoaded = false;
   const ready = () => { if (orgPending > 0 && --orgPending === 0) S.orgLoaded = true; render(); };
   const list = (name, set) => odb.collection(name).onSnapshot(s => { set(s.docs); ready(); }, onErr);
   list("datevotes", d => S.datevotes = Object.fromEntries(d.map(x => [x.id, x.data()])));
@@ -915,6 +995,7 @@ function listenOrg(){
   list("destinations", d => S.dests = d.map(x => ({id:x.id, ...x.data()})));
   list("tasks", d => S.tasks = d.map(x => ({id:x.id, ...x.data()})));
   list("schedule", d => S.orgSchedule = d.map(x => ({id:x.id, ...x.data()})));
+  list("teasers", d => S.orgTeasers = d.map(x => ({id:x.id, ...x.data()})));
   odb.collection("diet").onSnapshot(s => { S.diet = Object.fromEntries(s.docs.map(x => [x.id, x.data()])); render(); }, onErr);
   odb.doc("orgsettings/calc").onSnapshot(s => { S.calc = s.exists ? {...DEFAULT_CALC, ...s.data()} : {...DEFAULT_CALC}; render(); }, onErr);
 }
@@ -940,7 +1021,7 @@ render();
     if (e && e.code === "permission-denied") { db = false; loadErr = "Gruppkoden fungerar inte. Öppna inbjudningslänken du fick igen."; }
     else toast("Tappade kontakten med datan. Den kommer tillbaka när nätet gör det.");
     render(); };
-  let pending = 8;
+  let pending = 11;
   const ready = () => { if (pending > 0 && --pending === 0) { S.loaded = true; } render(); };
   const list = (name, set) => gdb.collection(name).onSnapshot(s => { set(s.docs); ready(); }, onErr);
   list("people", d => S.people = d.map(x => ({id:x.id, ...x.data()})));
@@ -949,6 +1030,9 @@ render();
   list("schedule", d => S.schedule = d.map(x => ({id:x.id, ...x.data()})));
   list("cars", d => S.cars = d.map(x => ({id:x.id, ...x.data()})));
   list("rooms", d => S.rooms = d.map(x => ({id:x.id, ...x.data()})));
+  list("teasers", d => S.teasers = d.map(x => ({id:x.id, ...x.data()})));
+  list("grenar", d => S.grenar = d.map(x => ({id:x.id, ...x.data()})));
+  list("resultat", d => S.resultat = d.map(x => ({id:x.id, ...x.data()})));
   gdb.doc("settings/practical").onSnapshot(s => { S.practical = s.exists ? s.data() : {}; ready(); }, onErr);
   let seeding = false;
   gdb.doc("settings/meta").onSnapshot(s => {

@@ -122,6 +122,9 @@ input,select,textarea{font-size:16px}
 .yak{display:inline-block;flex:none;border-radius:50%;vertical-align:middle}
 .who{display:inline-flex;align-items:center;gap:6px}
 .badge{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:99px;background:var(--lingon);color:#fff;font-size:11px;line-height:18px;text-align:center}
+.slider{display:grid;gap:4px}.slider b{font:800 30px/1.1 var(--display);text-align:center}.slider input[type=range]{width:100%;accent-color:var(--accent);padding:0;border:0;background:none}
+.slider .ends{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.count{font:800 40px/1 var(--display);color:var(--accent)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:99px;padding:6px 12px;font:600 13px var(--body);cursor:pointer}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
@@ -175,6 +178,7 @@ input,select,textarea{font-size:16px}
       <button role="tab" data-tab="aktiviteter">Aktiviteter</button>
       <button role="tab" data-tab="helgen">Helgen</button>
       <button role="tab" data-tab="utlagg">Utlägg</button>
+      <button role="tab" data-tab="topp">Topplista</button>
       <button role="tab" data-tab="deltagare">Deltagare</button>
     </nav>
   </div>
@@ -222,6 +226,12 @@ input,select,textarea{font-size:16px}
       <form class="form" id="newsForm" data-org hidden>
         <label class="wide">Ny nyhet till alla<textarea id="newsText" maxlength="1000" rows="2" placeholder="t.ex. Samling fredag 16.00 vid Konserthuset"></textarea></label>
         <button class="btn" type="submit">Publicera</button>
+      </form>
+    </div>
+    <div class="panel" id="teaserPanel"><h3>Teasers</h3><div class="rows" id="teaserList"></div>
+      <form class="form" id="teaserForm" data-org hidden>
+        <label class="wide">Ny teaser (hemlig tills du släpper den)<textarea id="teaserText" maxlength="300" rows="2" placeholder="t.ex. Ta med varma kläder. Mer säger vi inte."></textarea></label>
+        <button class="btn ghost" type="submit">Spara teaser</button>
       </form>
     </div>
     <div class="panel"><h3>Fotoalbum</h3><div id="hemPhoto"></div></div>
@@ -278,13 +288,13 @@ input,select,textarea{font-size:16px}
 
   <!-- BUDGET -->
   <section role="tabpanel" id="p-budget" hidden>
-    <div><h2>Budget</h2><p class="lead">Arrangörerna väljer nivå för hela helgen, inklusive Jacobs del och 10 % buffert. Bara antal per nivå visas, inte vem som valt vad. Kalkylen nedan visar vad det faktiskt kostar.</p></div>
+    <div><h2>Budget</h2><p class="lead">Varje arrangör sätter sitt eget tak för hela helgen, inklusive Jacobs del och 10 % buffert. Bara fördelningen visas, inte vem som valt vad. Kalkylen nedan visar vad det faktiskt kostar.</p></div>
     <div class="grid2">
       <div class="panel">
         <h3>Mitt val (arrangörer)</h3>
         <p id="budgetNote" class="lead" hidden>Budgeten sätts av arrangörerna. Här ser du vad de landat i.</p>
         <form class="form" id="budgetForm">
-          <fieldset class="wide" id="bLevels" style="border:0;padding:0;margin:0;display:grid;gap:8px"><legend style="font-size:13px;color:var(--muted);margin-bottom:6px">Högsta nivå jag klarar, hela helgen</legend></fieldset>
+          <div class="wide" id="bSlider"></div>
           <label class="wide">Kommentar<input id="bComment" maxlength="140" placeholder="t.ex. hellre enklare boende och mer aktivitet"></label>
           <button class="btn" type="submit" id="bSave">Spara</button>
         </form>
@@ -392,6 +402,29 @@ input,select,textarea{font-size:16px}
         <label>Rum<input id="rName" maxlength="40" placeholder="t.ex. Övervåningen"></label>
         <label>Sängar<input id="rBeds" type="number" min="1" max="20" value="2" inputmode="numeric"></label>
         <button class="btn ghost" type="submit">Lägg till rum</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- TOPPLISTA -->
+  <section role="tabpanel" id="p-topp" hidden>
+    <div><h2>Topplista</h2><p class="lead">Grenar under helgen. Alla kan rapportera ett resultat, även utan nät: det skickas när nätet är tillbaka. Bästa resultatet per person räknas.</p></div>
+    <div class="panel"><h3>Rapportera</h3>
+      <form class="form" id="scoreForm">
+        <label>Gren<select id="scGren" required></select></label>
+        <label>Vem<select id="scWho"></select></label>
+        <label>Resultat<input id="scVal" type="number" step="any" inputmode="decimal" required></label>
+        <label>Kommentar<input id="scNote" maxlength="100" placeholder="valfritt"></label>
+        <button class="btn" type="submit">Rapportera</button>
+      </form>
+    </div>
+    <div class="rows" id="toppList"></div>
+    <div class="panel" data-org hidden><h3>Ny gren</h3>
+      <form class="form" id="grenForm">
+        <label>Gren<input id="gTitle" required maxlength="60" placeholder="t.ex. Flest åk"></label>
+        <label>Enhet<input id="gUnit" maxlength="20" placeholder="t.ex. åk, sek, poäng"></label>
+        <label>Vem vinner<select id="gBetter"><option value="high">Högst vinner</option><option value="low">Lägst vinner (t.ex. tid)</option></select></label>
+        <button class="btn ghost" type="submit">Lägg till gren</button>
       </form>
     </div>
   </section>
