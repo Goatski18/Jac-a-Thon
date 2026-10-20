@@ -1,6 +1,16 @@
+// Möjliga helger 2027 (fre–sön). Borta enligt Elin: v3 (22–24 jan), Umeå 2–5 feb (5–7 feb), 13–20 mars (12–14 och 19–21 mars).
 const WEEKENDS = [
+  {id:"w0101", label:"1–3 jan", note:"Nyårshelgen"},
+  {id:"w0108", label:"8–10 jan", note:""},
+  {id:"w0115", label:"15–17 jan", note:""},
+  {id:"w0129", label:"29–31 jan", note:""},
+  {id:"w0212", label:"12–14 feb", note:""},
+  {id:"w0219", label:"19–21 feb", note:"Sportlov i vissa län"},
+  {id:"w0226", label:"26–28 feb", note:"Sportlov i vissa län"},
+  {id:"w0305", label:"5–7 mar", note:"Sportlov i vissa län"},
+  {id:"w0326", label:"26–28 mar", note:"Påsk, avråds"},
   {id:"w0402", label:"2–4 apr", note:""},
-  {id:"w0409", label:"9–11 apr", note:""},
+  {id:"w0409", label:"9–11 apr", note:"Rekommenderad"},
   {id:"w0416", label:"16–18 apr", note:""},
   {id:"w0423", label:"23–25 apr", note:""},
   {id:"w0430", label:"30 apr–2 maj", note:"Valborg"},
@@ -159,7 +169,7 @@ function openOrgBox(){
   if (!created) {
     newPin = newPin || makePin();
     box.replaceChildren(h("h2",{},"Skapa arrangörsläget"),
-      h("p",{}, "Arrangörsläget har planeringen: budget, resmål, aktiviteter, uppgifter och helgens hemliga schema. Det skyddas av en PIN-kod som deltagarna inte har."),
+      h("p",{}, "Arrangörsläget har planeringen: budget, koncept, aktiviteter, uppgifter och helgens hemliga schema. Det skyddas av en PIN-kod som deltagarna inte har."),
       h("div",{class:"panel", style:"text-align:center"}, h("h3",{},"Er PIN-kod"), h("b",{style:"font:800 30px var(--display);letter-spacing:.06em"}, newPin)),
       h("p",{class:"lead"}, "Spara den nu och skicka den bara till arrangörerna, inte i gruppchatten med alla. Den går inte att visa igen."),
       h("div",{class:"inline"}, h("button",{class:"btn", type:"button", onclick:async e=>{ e.target.disabled = true; e.target.textContent = "Skapar…";
@@ -505,7 +515,7 @@ function renderOverview(){
   $("ovTasks").replaceChildren(...(next.length ? next.map(taskRow) : [h("div",{class:"empty"},"Inga öppna uppgifter med deadline.")]));
   const acts = sortedActs().slice(0,3);
   const ds = sortedDests().filter(d=>votesOf(d)).slice(0,3);
-  $("ovDests").replaceChildren(...(ds.length ? ds.map(d=>h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{},d.title), h("span",{class:"meta"}, `${rost(votesOf(d))}${d.price?` · ${d.price}`:""}`)))) : [h("div",{class:"empty"},"Inga röster än. Rösta under Resmål.")]));
+  $("ovDests").replaceChildren(...(ds.length ? ds.map(d=>h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{},d.title), h("span",{class:"meta"}, `${rost(votesOf(d))}${d.price?` · ${d.price}`:""}`)))) : [h("div",{class:"empty"},"Inga röster än. Rösta under Koncept.")]));
   $("ovActs").replaceChildren(...(acts.length ? acts.map(a=>h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{},a.title), h("span",{class:"meta"}, `${rost(votesOf(a))}${a.cost?` · ca ${kr(a.cost)}/pers`:""}`)))) : [h("div",{class:"empty"},"Inga förslag än. Lägg till under Aktiviteter.")]));
 }
 
@@ -542,18 +552,22 @@ $("copyInvite").addEventListener("click", async () => {
 });
 
 function renderDates(people){
+  // En rad per helg: mitt svar + summering, så att tabellen får plats på mobilen.
   const t = $("dateTable");
-  const head = h("tr",{}, h("th",{},"Person"), ...WEEKENDS.map(w=>h("th",{}, w.label, w.note ? h("div",{style:"font-weight:400;text-transform:none;letter-spacing:0"}, w.note) : null)));
   const tallies = WEEKENDS.map(w=>dateTally(w.id));
   const bestScore = Math.max(...tallies.map(x=>x.score));
-  const rows = people.map(p => h("tr",{}, h("td",{}, p.name, p.id===me?" (du)":""), ...WEEKENDS.map(w => {
-    const v = (S.datevotes[p.id]||{})[w.id] || "";
-    const mine = p.id === me;
-    return h("td",{}, h("button",{class:"vote", type:"button", "data-v":v, disabled:!mine, title: mine ? "Klicka för att ändra" : "Bara personen själv kan ändra",
-      onclick:()=>{ const nv = NEXT_VOTE[v]; write(()=>db.doc("datevotes/"+p.id).set({...(S.datevotes[p.id]||{}), [w.id]:nv})); }}, VOTE_LABEL[v]));
-  })));
-  const total = h("tr",{class:"hl"}, h("td",{},"Summa"), ...tallies.map(x=>h("td",{}, `${x.yes} kan · ${x.maybe} kanske${x.score===bestScore&&x.score>0?" ★":""}`)));
-  t.replaceChildren(h("thead",{},head), h("tbody",{}, rows.length ? rows : h("tr",{}, h("td",{colSpan:WEEKENDS.length+1, class:"empty"},"Lägg till deltagare för att kunna rösta.")), total));
+  const names = (w, v) => people.filter(p => (S.datevotes[p.id]||{})[w] === v).map(p => p.name.split(" ")[0]);
+  t.replaceChildren(
+    h("thead",{}, h("tr",{}, h("th",{},"Helg"), h("th",{},"Mitt svar"), h("th",{},"Gruppen"))),
+    h("tbody",{}, ...WEEKENDS.map((w, i) => { const v = (S.datevotes[me]||{})[w.id] || ""; const x = tallies[i];
+      return h("tr",{class: x.score===bestScore && x.score>0 ? "hl" : ""},
+        h("td",{}, h("b",{}, w.label), w.note ? h("div",{class:"meta", style:"font-size:12px;color:var(--muted)"}, w.note) : null),
+        h("td",{}, h("button",{class:"vote", type:"button", "data-v":v, disabled:!personName(me),
+          onclick:()=>{ if (!needMe()) return; write(()=>db.doc("datevotes/"+me).set({...(S.datevotes[me]||{}), [w.id]:NEXT_VOTE[v]})); }}, VOTE_LABEL[v])),
+        h("td",{style:"white-space:normal;min-width:160px"}, `${x.yes} kan · ${x.maybe} kanske · ${x.no} kan inte${x.score===bestScore&&x.score>0?" ★":""}`,
+          x.yes ? h("div",{style:"font-size:12px;color:var(--muted)"}, "Kan: " + names(w.id, "yes").join(", ")) : null,
+          x.no ? h("div",{style:"font-size:12px;color:var(--muted)"}, "Kan inte: " + names(w.id, "no").join(", ")) : null));
+    })));
 }
 
 function renderBudget(people){
@@ -631,7 +645,7 @@ function renderDests(){
     const who = d.by ? personName(d.by) : "";
     return h("div",{class:"row"},
       h("div",{class:"main"}, h("strong",{}, d.title),
-        h("div",{class:"dest-meta"}, d.travel ? h("span",{}, d.travel) : null, d.price ? h("span",{}, d.price) : null),
+        h("div",{class:"dest-meta"}, d.level ? h("span",{}, d.level) : null, d.travel ? h("span",{}, d.travel) : null, d.price ? h("span",{}, d.price) : null),
         d.desc ? h("span",{class:"meta"}, d.desc) : null,
         voters.length ? h("span",{class:"meta"}, "Röstat: " + voters.join(", ")) : null,
         who ? h("span",{class:"meta"}, `föreslaget av ${who}`) : null,
@@ -639,12 +653,12 @@ function renderDests(){
       h("span",{class:"pill"}, `${rost(votesOf(d))}`),
       h("button",{class: voted ? "btn small" : "btn ghost small", type:"button", onclick:()=>{ if (!needMe()) return;
         write(()=>db.doc("destinations/"+d.id).update({["votes."+me]:!voted})); }}, voted ? "Röstat" : "Rösta"));
-  }) : [h("div",{class:"empty"}, S.loaded ? "Inga resmål än. Föreslå det första nedan." : "Laddar…")]));
+  }) : [h("div",{class:"empty"}, S.loaded ? "Inga koncept än. Föreslå det första nedan." : "Laddar…")]));
 }
 $("destForm").addEventListener("submit", async e => { e.preventDefault(); if (!needMe()) return;
   const title = $("dTitle").value.trim(); if (!title) return;
-  const data = {title, travel:$("dTravel").value.trim(), price:$("dPrice").value.trim(), desc:$("dDesc").value.trim(), by:me, votes:{[me]:true}, createdAt:new Date().toISOString()};
-  if (await write(()=>db.collection("destinations").add(data))) { e.target.reset(); toast("Resmålet är tillagt"); } });
+  const data = {title, level:$("dLevel").value, travel:$("dTravel").value.trim(), price:$("dPrice").value.trim(), desc:$("dDesc").value.trim(), by:me, votes:{[me]:true}, createdAt:new Date().toISOString()};
+  if (await write(()=>db.collection("destinations").add(data))) { e.target.reset(); toast("Konceptet är tillagt"); } });
 const isLate = t => t.status!=="Klar" && t.due && t.due < today();
 function taskRow(t){
   const late = isLate(t), done = t.status === "Klar";
@@ -801,13 +815,13 @@ const SEED = {
     robin:{name:"Robin", contact:"", role:"Deltagare", status:"Ej inbjuden", paid:false},
     anders:{name:"Anders", contact:"", role:"Deltagare", status:"Ej inbjuden", paid:false},
   },
+  // Koncept efter Elins svar (20 okt). Priser är uppskattningar per person, ca 10 pers, från Örebro.
   destinations: {
-    hemma:{order:1, title:"Hemmaplan, Kilsbergen", travel:"Bil, under 1 h", price:"3 500–4 500 kr", desc:"Stuga, bastu, cykel och kanot."},
-    gbg:{order:2, title:"Göteborg", travel:"Bil, ca 3 h", price:"3 800–8 400 kr", desc:"Skärgård, RIB-tur, hantverksöl och tandemhopp i Vårgårda."},
-    oslo:{order:3, title:"Oslo", travel:"Bil, ca 4 h", price:"3 500–8 500 kr", desc:"Zipline, tandemhopp och bastubåtar. Mycket dyr öl."},
-    gdansk:{order:4, title:"Gdańsk", travel:"Flyg från Arlanda", price:"4 300–8 800 kr", desc:"Skytte, karting och villa vid en sjö."},
-    riga:{order:5, title:"Riga", travel:"Flyg från Arlanda", price:"5 000–11 000 kr", desc:"Bungee och bob i Sigulda (från maj), skytte och herrgård med bastu."},
-    tallinn:{order:6, title:"Tallinn", travel:"Färja över natten", price:"Inte prisberäknat", desc:"Båten blir en del av festen."},
+    are:{order:1, level:"Mellan", title:"A. Åre: skidor, afterski och fjälltur", travel:"Nattåg fre kväll (bil går också)", price:"6 500–7 500 kr (bil 5 500–6 500)", desc:"Skidor och afterski i Åre, plus guidad fjälltur till Storulvån med lunch och bastu."},
+    vildmark:{order:2, level:"Mellan", title:"B. Vildmark till Storulvån", travel:"Bil ca 8 h", price:"5 500–7 000 kr", desc:"Tur från Storlien/Enafors till STF Storulvån. En kväll med bastu, middag och häng. Risk: lugnt för party."},
+    lyx:{order:3, level:"Lyx", title:"C. Lyx: Åre + Storulvån med guide och kock", travel:"Nattåg eller bil", price:"ca 9 500 kr", desc:"En natt party i Åre och en natt på Storulvån med guide och kock."},
+    berlin:{order:4, level:"Mellan", title:"D. Berlin: förfest och klubb/konsert", travel:"Bil + flyg, ca 4 h", price:"5 000–7 000 kr", desc:"Lång förfest och sedan klubb i Berlin-stil eller konsert. Ingen snö, och Jacob gillar inte ungdomsnattklubb."},
+    branas:{order:5, level:"Enkel", title:"E. Enkel: stuga i Branäs/Sälen", travel:"Bil 3–4 h", price:"2 500–3 000 kr", desc:"Självhushåll i stuga och skidåkning."},
   },
   activities: {
     bastu:{title:"Bastu och ölprovning", cost:500, desc:"Vedeldad bastu, kallbad och guidad provning av lokala öl på kvällen."},
@@ -822,8 +836,8 @@ const SEED = {
     t02:["Kontakta Elin (partnern): helgen hålls fri, gästlista, gränser, krock med möhippan","2026-11-08","alexander"],
     t03:["Lägg in alla deltagare med kontaktuppgifter i appen","2026-11-15"],
     t04:["Skicka applänken till alla (inte till Jacob)","2026-11-15","martin"],
-    t07:["Besluta budgettak gemensamt (före resmål och aktiviteter)","2026-11-15"],
-    t05:["Välj resmål och helg inom budgettaket","2026-11-22"],
+    t07:["Besluta budgettak gemensamt (före koncept och aktiviteter)","2026-11-15"],
+    t05:["Välj koncept och helg gemensamt (rösta i appen)","2026-11-22"],
     t06:["Skicka save-the-date med pris och helg","2026-11-29"],
     t08:["Ta in förskott och lås antalet","2026-12-13"],
     t09:["Boka boende för hela helgen","2026-12-20"],

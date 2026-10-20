@@ -171,7 +171,7 @@ input,select,textarea{font-size:16px}
       <button role="tab" data-tab="uppgifter">Uppgifter<span class="badge" id="taskBadge" hidden></span></button>
       <button role="tab" data-tab="datum">Datum</button>
       <button role="tab" data-tab="budget">Budget</button>
-      <button role="tab" data-tab="resmal">Resmål</button>
+      <button role="tab" data-tab="resmal">Koncept</button>
       <button role="tab" data-tab="aktiviteter">Aktiviteter</button>
       <button role="tab" data-tab="helgen">Helgen</button>
       <button role="tab" data-tab="utlagg">Utlägg</button>
@@ -243,7 +243,7 @@ input,select,textarea{font-size:16px}
     <div class="stats" id="stats"></div>
     <div class="grid2">
       <div class="panel"><h3 id="ovTasksH">Närmaste uppgifter</h3><div class="rows" id="ovTasks"></div></div>
-      <div class="panel"><h3>Populäraste aktiviteter</h3><div class="rows" id="ovActs"></div><h3>Populäraste resmål</h3><div class="rows" id="ovDests"></div></div>
+      <div class="panel"><h3>Populäraste aktiviteter</h3><div class="rows" id="ovActs"></div><h3>Populäraste koncept</h3><div class="rows" id="ovDests"></div></div>
     </div>
   </section>
 
@@ -272,7 +272,7 @@ input,select,textarea{font-size:16px}
 
   <!-- DATUM -->
   <section role="tabpanel" id="p-datum" hidden>
-    <div><h2>Vilken helg funkar?</h2><p class="lead">Klicka på din egen rad för att växla mellan Kan, Kanske och Kan inte. Kristi himmelsfärd är torsdag 6 maj, så den helgen kan bli torsdag–söndag, men den blir dyrare.</p></div>
+    <div><h2>Vilken helg funkar?</h2><p class="lead">Tryck på ditt svar för att växla mellan Kan, Kanske och Kan inte. Helgerna där Jacob är upptagen enligt Elin är redan bortplockade (v3, 5–7 feb och 12–21 mars).</p></div>
     <div class="panel scroll"><table id="dateTable"></table></div>
   </section>
 
@@ -308,15 +308,16 @@ input,select,textarea{font-size:16px}
 
   <!-- RESMÅL -->
   <section role="tabpanel" id="p-resmal" hidden>
-    <div><h2>Resmål</h2><p class="lead">Rösta på de resmål du kan tänka dig, gärna flera. Priserna är ungefärliga för två nätter per person och inte kontrollerade hos leverantörerna. Flera bilar finns, så bilresor blir billigast.</p></div>
+    <div><h2>Koncept</h2><p class="lead">Arrangörerna väljer koncept tillsammans. Rösta på alla du kan tänka dig, gärna flera; flest röster leder. Priserna är uppskattningar per person för hela helgen och inte kontrollerade hos leverantörerna.</p></div>
     <div class="rows" id="dests"></div>
     <div class="panel">
-      <h3>Föreslå ett resmål</h3>
+      <h3>Föreslå ett koncept</h3>
       <form class="form" id="destForm">
-        <label>Resmål<input id="dTitle" required maxlength="60" placeholder="t.ex. Kraków"></label>
+        <label>Koncept<input id="dTitle" required maxlength="80" placeholder="t.ex. Kraków: skytte och karting"></label>
+        <label>Budgetnivå<select id="dLevel"><option>Enkel</option><option selected>Mellan</option><option>Lyx</option></select></label>
         <label>Resväg och restid<input id="dTravel" maxlength="60" placeholder="t.ex. flyg från Arlanda"></label>
         <label>Pris per person<input id="dPrice" maxlength="40" placeholder="t.ex. 4 000–7 000 kr"></label>
-        <label class="wide">Vad gör man där<input id="dDesc" maxlength="200"></label>
+        <label class="wide">Vad gör man<input id="dDesc" maxlength="300"></label>
         <button class="btn" type="submit">Föreslå</button>
       </form>
     </div>
