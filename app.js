@@ -822,9 +822,15 @@ function codeFrom(text){
   const m = String(text||"").match(/[#&?]k=([A-Za-z0-9_-]{20,64})/) || String(text||"").trim().match(/^([A-Za-z0-9_-]{20,64})$/);
   return m ? m[1] : "";
 }
-let groupCode = codeFrom(location.hash);
+let groupCode = codeFrom(location.hash) || codeFrom(location.search);
 if (groupCode) { try { localStorage.setItem(CODE_KEY, groupCode); } catch(e){} }
 else { try { groupCode = localStorage.getItem(CODE_KEY) || ""; } catch(e){} }
+// iPhone: appen på hemskärmen har egen lagring, skild från Safari. Lägg gruppkoden även i adressens ?k=
+// så att den följer med när någon väljer Lägg till på hemskärmen, oavsett om #-delen sparas.
+if (groupCode && !codeFrom(location.search)) try {
+  const q = new URLSearchParams(location.search); q.set("k", groupCode);
+  history.replaceState(null, "", location.pathname + "?" + q.toString().replace(/=(&|$)/g, "$1") + location.hash);
+} catch(e){}
 let orgKey = ""; try { orgKey = localStorage.getItem(ORG_KEY + ":" + groupCode) || ""; } catch(e){}
 const isOrg = () => !!orgKey && !!odb;
 function inviteLink(){ return location.origin + location.pathname + "#k=" + groupCode; }
@@ -876,7 +882,7 @@ function localDb(root){
       get: async () => { const d = coll(c)[id]; return {exists:!!d, data:() => clone(d)}; },
       set: async d => { coll(c)[id] = clone(d); save(); },
       update: async d => { const doc = coll(c)[id]; if (!doc) throw {code:"not-found"};
-        for (const [k, v] of Object.entries(d)) { const ks = k.split("."); let o = doc; ks.slice(0, -1).forEach(x => o = (o[x] = o[x] || {})); o[ks.at(-1)] = clone(v); }
+        for (const [k, v] of Object.entries(d)) { const ks = k.split("."); let o = doc; ks.slice(0, -1).forEach(x => o = (o[x] = o[x] || {})); o[ks[ks.length - 1]] = clone(v); }
         save(); },
       delete: async () => { delete coll(c)[id]; save(); } }; },
   };
@@ -1018,7 +1024,8 @@ $("gateForm").addEventListener("submit", e => { e.preventDefault();
 $("leave").addEventListener("click", () => {
   if (!confirm("Byta grupp? Du behöver inbjudningslänken för att komma tillbaka.")) return;
   try { localStorage.removeItem(CODE_KEY); localStorage.removeItem("svx-me"); localStorage.removeItem(ORG_KEY + ":" + groupCode); } catch(e){}
-  location.hash = ""; location.reload(); });
+  const q = new URLSearchParams(location.search); q.delete("k");
+  location.replace(location.pathname + (q.toString() ? "?" + q.toString().replace(/=(&|$)/g, "$1") : "")); });
 addEventListener("online", () => render()); addEventListener("offline", () => render());
 // Dubbeltryck ska inte skapa dubbletter: samma formulär med samma innehåll inom 1,5 sekunder skickas bara en gång.
 const lastSubmit = new WeakMap();
