@@ -1,6 +1,5 @@
 // Möjliga helger 2027 (fre–sön). Borta enligt Elin: v3 (22–24 jan), Umeå 2–5 feb (5–7 feb), 13–20 mars (12–14 och 19–21 mars).
 const WEEKENDS = [
-  {id:"w0101", label:"1–3 jan", note:"Nyårshelgen"},
   {id:"w0108", label:"8–10 jan", note:""},
   {id:"w0115", label:"15–17 jan", note:""},
   {id:"w0129", label:"29–31 jan", note:""},
