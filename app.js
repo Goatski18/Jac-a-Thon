@@ -21,16 +21,9 @@ const NEXT_VOTE = {"":"yes", yes:"maybe", maybe:"no", no:""};
 const STATUSES = ["Ej inbjuden","Inbjuden","Kommer","Kanske","Kan inte"];
 const ROLES = ["Deltagare","Arrangör","Sammankallande","Kassör"];
 const TASK_STATUS = ["Att göra","Pågår","Klar"];
-// Reglaget: var och en sätter sitt exakta tak. Gamla nivåval (Enkel/Mellan/Lyx) har redan ett belopp i max och gäller som det.
-const B_MIN = 1000, B_MAX = 15000, B_STEP = 250, B_START = 5500;
-function budgetSlider(val){
-  const out = h("b",{}, kr(val || B_START));
-  const r = h("input",{type:"range", min:B_MIN, max:B_MAX, step:B_STEP, value:val || B_START, "aria-label":"Mitt budgettak i kronor", oninput:e=>{ out.textContent = kr(+e.target.value); }});
-  return {el: h("div",{class:"slider"}, out, r, h("div",{class:"ends"}, h("span",{}, kr(B_MIN)), h("span",{}, kr(B_MAX)))), value: () => +r.value, input: r};
-}
 const DEFAULT_CALC = {lodging:25000, food:1200, act:600, trans:0, buf:10, groom:1};
 
-const S = {people:[], datevotes:{}, budget:{}, acts:[], dests:[], tasks:[], expenses:[], calc:{...DEFAULT_CALC}, loaded:false,
+const S = {people:[], datevotes:{}, acts:[], plan:{}, tasks:[], expenses:[], calc:{...DEFAULT_CALC}, loaded:false,
   orgLoaded:false, meta:{}, news:[], schedule:[], orgSchedule:[], cars:[], rooms:[], practical:{}, diet:{},
   teasers:[], orgTeasers:[], grenar:[], resultat:[]};
 let db = null; // router till gruppdel/arrangörsdel, false om datan inte går att nå
@@ -79,7 +72,7 @@ async function write(fn){
 }
 
 /* ---------- tabs ---------- */
-const TABS = ["hem","oversikt","uppgifter","datum","budget","resmal","aktiviteter","helgen","utlagg","topp","deltagare"];
+const TABS = ["hem","oversikt","resmal","uppgifter","datum","budget","aktiviteter","helgen","utlagg","topp","deltagare"];
 let curTab = "hem", wantTab = "hem";
 function showTab(t){ wantTab = t; try { localStorage.setItem("svx-tab", t); } catch(e) {} applyTab(); }
 function applyTab(){
@@ -173,7 +166,7 @@ function openOrgBox(){
     newPin = newPin || makePin();
     const pinIn = h("input",{value:newPin, autocomplete:"off", autocapitalize:"characters", spellcheck:false, style:"font:800 24px var(--display);letter-spacing:.06em;text-align:center", oninput:e=>{ newPin = e.target.value; }});
     box.replaceChildren(h("h2",{},"Skapa arrangörsläget"),
-      h("p",{}, "Arrangörsläget har planeringen: budget, koncept, aktiviteter, uppgifter och helgens hemliga schema. Det skyddas av en PIN-kod som deltagarna inte har."),
+      h("p",{}, "Arrangörsläget har planeringen: upplägg, kostnad, aktiviteter, uppgifter och helgens hemliga schema. Det skyddas av en PIN-kod som deltagarna inte har."),
       h("div",{class:"panel"}, h("label",{}, "Er PIN-kod (byt gärna till en egen)", pinIn)),
       h("p",{class:"lead"}, "Spara den nu och skicka den bara till arrangörerna, inte i gruppchatten med alla. Den går inte att visa igen."),
       h("div",{class:"inline"}, h("button",{class:"btn", type:"button", onclick:async e=>{
@@ -370,13 +363,10 @@ $("expJson").addEventListener("click", () => {
 
 
 
-/* ---------- startsida: vem är du + budget (bara arrangörer sätter budget) ---------- */
-const PLANNER_ROLES = ["Arrangör","Sammankallande","Kassör"];
-const isPlanner = id => PLANNER_ROLES.includes((S.people.find(p=>p.id===id)||{}).role);
-let welcomeLater = false;
+/* ---------- startsida: vem är du ---------- */
 function renderWelcome(){
   const w = $("welcome");
-  const need = S.loaded && db && (!personName(me) || (isOrg() && S.orgLoaded && isPlanner(me) && !(S.budget[me] && S.budget[me].max))) && !welcomeLater;
+  const need = S.loaded && db && !personName(me);
   w.hidden = !need; if (!need) return;
   const box = $("welcomeBox");
   const logo = h("img",{src:"icons/icon-192.png", alt:"", style:"width:96px;height:96px;border-radius:22px;margin:0 auto;display:block"});
@@ -388,17 +378,6 @@ function renderWelcome(){
       h("div",{class:"panel"}, h("h3",{},"Står du inte med?"), h("form",{class:"inline", onsubmit:async e=>{ e.preventDefault(); const name = nameIn.value.trim(); if (!name) return;
         const id = newId(); if (await write(()=>gdb.doc("people/"+id).set({name, contact:"", role:"Deltagare", status:"Kommer", paid:false, createdAt:nowIso()}))) {
           me = id; try { localStorage.setItem("svx-me", me); } catch(_){} render(); } }}, nameIn, h("button",{class:"btn", type:"submit"},"Lägg till mig"))));
-  } else {
-    const mine = S.budget[me] || {};
-    const sl = budgetSlider(mine.max);
-    const saveBudget = async () => { if (await write(()=>db.doc("budget/"+me).set({max:sl.value(), comment:mine.comment||""}))) { toast("Tack! Ditt budgettak är sparat"); showTab("oversikt"); render(); } };
-    box.replaceChildren(logo, h("h1",{}, `Hej ${personName(me).split(" ")[0]}!`),
-      h("p",{class:"lead", style:"text-align:center"}, "Som arrangör sätter du budgeten. Vad tror du att gänget klarar att lägga på hela helgen? Det inkluderar Jacobs del och 10 % buffert."),
-      h("div",{class:"panel"}, sl.el, h("div",{style:"text-align:center;margin-top:8px"}, h("button",{class:"btn", type:"button", onclick:saveBudget}, "Spara mitt tak"))),
-      h("p",{class:"lead", style:"text-align:center;font-size:13px"}, "Ingen ser vad just du väljer, bara fördelningen. Arrangörerna landar på det högsta taket som minst 80 % av er klarar."),
-      h("div",{class:"panel"}, h("h3",{},"Gör din jak (valfritt)"), yakEditor(me)),
-      h("div",{style:"text-align:center"}, h("button",{class:"btn ghost small", type:"button", onclick:()=>{ welcomeLater = true; render(); }}, "Sätt budget senare")),
-      h("div",{style:"text-align:center"}, h("button",{class:"btn ghost small", type:"button", onclick:()=>{ me = ""; try { localStorage.removeItem("svx-me"); } catch(_){} render(); }}, `Jag är inte ${personName(me)}`)));
   }
 }
 
@@ -419,7 +398,7 @@ function render(){
   if ($("myYak").dataset.for && $("myYak").dataset.for !== me) { $("myYak").dataset.for = ""; $("myYak").replaceChildren(); }
   // Varje del ritas för sig, så att en trasig post bara påverkar sin egen flik.
   const parts = [renderTabs, renderWelcome, renderStatus, renderHem, renderHelgen, renderPeople, renderExpenses, renderTopp];
-  if (isOrg()) parts.push(renderOverview, renderDates, renderBudget, renderDests, renderActs, renderTasks);
+  if (isOrg()) parts.push(renderOverview, renderDates, renderBudget, renderPlan, renderActs, renderTasks);
   for (const f of parts) try { f(people); } catch(e) { console.error(f.name, e); }
 }
 
@@ -561,14 +540,6 @@ function dateTally(w){
   for (const p of S.people) { const v = (S.datevotes[p.id]||{})[w]; if (v==="yes") yes++; else if (v==="maybe") maybe++; else if (v==="no") no++; }
   return {yes, maybe, no, score: yes + maybe*0.5};
 }
-function budgetStats(){
-  const vals = S.people.filter(p => isPlanner(p.id)).map(p => (S.budget[p.id]||{}).max).filter(v => typeof v === "number" && v > 0).sort((a,b)=>a-b);
-  if (!vals.length) return null;
-  const n = vals.length, mid = Math.floor(n/2);
-  const median = n%2 ? vals[mid] : (vals[mid-1]+vals[mid])/2;
-  const level80 = vals[Math.floor(0.2*n)]; // högsta nivå som minst 80 % klarar
-  return {n, min:vals[0], max:vals[n-1], median, level80};
-}
 function pricePerPayer(payers){
   const c = S.calc; if (!payers) return 0;
   const perHead = (+c.food||0)+(+c.act||0)+(+c.trans||0);
@@ -579,7 +550,6 @@ function pricePerPayer(payers){
 function renderOverview(){
   const coming = S.people.filter(p=>p.status==="Kommer").length;
   const best = WEEKENDS.map(w=>({w,...dateTally(w.id)})).sort((a,b)=>b.score-a.score)[0];
-  const bs = budgetStats();
   const payers = coming || 15;
   const price = pricePerPayer(payers);
   const open = S.tasks.filter(t=>t.status!=="Klar");
@@ -588,7 +558,7 @@ function renderOverview(){
   $("stats").replaceChildren(
     stat(`${coming} / ${S.people.length}`, "har tackat ja av inbjudna"),
     stat(best && best.score ? best.w.label : "–", best && best.score ? `${best.yes} kan, ${best.maybe} kanske` : "inga datumsvar än"),
-    stat(bs ? kr(bs.level80) : "–", bs ? `budget som minst 80 % klarar (${bs.n} svar)` : "inga budgetval än"),
+    stat("Djurö", `hus, 16–18 april 2027 · ${S.plan.status === "Bokat" ? "bokat" : "inte bokat än"}`),
     stat(kr(price), `kalkylerat pris per person vid ${payers} betalande${coming?"":" (antagande)"}`),
     stat(String(open.length), overdue ? `öppna uppgifter, ${overdue} försenade` : "öppna uppgifter"),
   );
@@ -597,8 +567,7 @@ function renderOverview(){
   const next = (mine.length ? mine : open.filter(t=>t.due).sort((a,b)=>a.due.localeCompare(b.due))).slice(0,5);
   if (!editing($("ovTasks"))) $("ovTasks").replaceChildren(...(next.length ? next.map(taskRow) : [h("div",{class:"empty"},"Inga öppna uppgifter med deadline.")]));
   const acts = sortedActs().slice(0,3);
-  const ds = sortedDests().filter(d=>votesOf(d)).slice(0,3);
-  $("ovDests").replaceChildren(...(ds.length ? ds.map(d=>h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{},d.title), h("span",{class:"meta"}, `${rost(votesOf(d))}${d.price?` · ${d.price}`:""}`)))) : [h("div",{class:"empty"},"Inga röster än. Rösta under Koncept.")]));
+  $("ovDests").replaceChildren(...planRows());
   $("ovActs").replaceChildren(...(acts.length ? acts.map(a=>h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{},a.title), h("span",{class:"meta"}, `${rost(votesOf(a))}${+a.cost?` · ca ${kr(a.cost)}/pers`:""}`)))) : [h("div",{class:"empty"},"Inga förslag än. Lägg till under Aktiviteter.")]));
 }
 
@@ -656,27 +625,7 @@ function renderDates(people){
     })));
 }
 
-let budgetSl = null, budgetDirty = false;
-function renderBudget(people){
-  const bs = budgetStats();
-  const mine = S.budget[me] || {};
-  if (!budgetSl || (!budgetDirty && budgetSl.value() !== (mine.max || B_START))) { budgetSl = budgetSlider(mine.max); budgetSl.input.addEventListener("input", () => { budgetDirty = true; }); $("bSlider").replaceChildren(h("span",{style:"font-size:13px;color:var(--muted)"}, "Mitt tak för hela helgen, per person"), budgetSl.el); }
-  if (document.activeElement !== $("bComment")) $("bComment").value = mine.comment || "";
-  $("budgetSummary").replaceChildren(bs
-    ? h("p",{}, h("b",{}, `${kr(bs.level80)} klaras av minst 80 %`), ` av de ${bs.n} som svarat. Spann ${kr(bs.min)}–${kr(bs.max)}, median ${kr(bs.median)}.`)
-    : h("div",{class:"empty"},"Inga förslag än. Var först."));
-  const votes = people.filter(p => isPlanner(p.id)).map(p => S.budget[p.id]).filter(b => b && b.max > 0);
-  $("budgetForm").hidden = !isPlanner(me);
-  $("budgetNote").hidden = isPlanner(me);
-  // fördelning i spann om 1 000 kr, utan namn
-  const bins = {}; for (const b of votes) { const lo = Math.floor((b.max-1)/1000)*1000; bins[lo] = (bins[lo]||0) + 1; }
-  const keys = Object.keys(bins).map(Number).sort((a,b)=>a-b);
-  const top = Math.max(1, ...Object.values(bins));
-  $("budgetList").replaceChildren(...keys.map(lo => { const n = bins[lo];
-    const ok80 = bs && bs.level80 > lo && bs.level80 <= lo+1000;
-    return h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{}, `${kr(lo+1)}–${kr(lo+1000)}: ${n} st`), ok80 ? h("span",{class:"pill"}, "Här ligger 80 %-taket") : null,
-      h("div",{class:"bar"}, h("i",{style:`width:${Math.round(n/top*100)}%`}))));
-  }), ...votes.filter(b => b.comment).map(b => h("div",{class:"row"}, h("div",{class:"main"}, h("span",{class:"meta"}, `"${b.comment}"`)))));
+function renderBudget(){
   // kalkyl
   const c = S.calc;
   for (const [id,k] of [["cLodging","lodging"],["cFood","food"],["cAct","act"],["cTrans","trans"],["cBuf","buf"]]) if (document.activeElement !== $(id)) $(id).value = c[k];
@@ -685,15 +634,11 @@ function renderBudget(people){
   const ns = [...new Set([8,10,12,15,20, coming].filter(n=>n>0))].sort((a,b)=>a-b);
   const t = $("calcTable");
   t.replaceChildren(
-    h("thead",{}, h("tr",{}, h("th",{},"Betalande"), h("th",{class:"num"},"Pris per person"), h("th",{class:"num"},"Total kostnad"), h("th",{},"Jämfört med budget"))),
+    h("thead",{}, h("tr",{}, h("th",{},"Betalande"), h("th",{class:"num"},"Pris per person"), h("th",{class:"num"},"Total kostnad"))),
     h("tbody",{}, ...ns.map(n => { const pp = pricePerPayer(n);
-      const vs = bs ? (pp <= bs.level80 ? h("span",{class:"pill"},"Inom 80 %-nivån") : h("span",{class:"pill warn"}, `${kr(pp-bs.level80)} över`)) : "–";
-      return h("tr",{class: n===coming ? "hl" : ""}, h("td",{}, n, n===coming ? " (anmälda nu)" : ""), h("td",{class:"num"}, kr(pp)), h("td",{class:"num"}, kr(pp*n)), h("td",{}, vs));
+      return h("tr",{class: n===coming ? "hl" : ""}, h("td",{}, n, n===coming ? " (anmälda nu)" : ""), h("td",{class:"num"}, kr(pp)), h("td",{class:"num"}, kr(pp*n)));
     })));
 }
-$("budgetForm").addEventListener("submit", async e => { e.preventDefault(); if (!needMe()) return;
-  const max = budgetSl ? budgetSl.value() : B_START;
-  if (await write(()=>db.doc("budget/"+me).set({max, comment:$("bComment").value.trim()}))) { budgetDirty = false; toast("Ditt budgettak är sparat"); } });
 let calcTimer;
 $("calcForm").addEventListener("change", () => { clearTimeout(calcTimer); calcTimer = setTimeout(()=>{
   const next = {lodging:+$("cLodging").value||0, food:+$("cFood").value||0, act:+$("cAct").value||0, trans:+$("cTrans").value||0, buf:+$("cBuf").value||0, groom:+$("cGroom").value};
@@ -723,30 +668,33 @@ $("actForm").addEventListener("submit", async e => { e.preventDefault(); if (!ne
   const data = {title, desc:$("aDesc").value.trim(), cost: Math.round(+$("aCost").value||0), by:me, votes:{[me]:true}, createdAt:new Date().toISOString()};
   if (await write(()=>db.collection("activities").add(data))) { e.target.reset(); toast("Förslaget är tillagt"); } });
 
-function sortedDests(){ return [...S.dests].sort((a,b)=>votesOf(b)-votesOf(a) || (a.order??99)-(b.order??99) || (a.title||"").localeCompare(b.title||"","sv")); }
-function renderDests(){
-  const ds = sortedDests();
-  const max = Math.max(1, ...ds.map(votesOf));
-  $("dests").replaceChildren(...(ds.length ? ds.map(d => {
-    const voted = !!(d.votes||{})[me];
-    const voters = Object.entries(d.votes||{}).filter(([,v])=>v).map(([id])=>personName(id)).filter(Boolean);
-    const who = d.by ? personName(d.by) : "";
-    return h("div",{class:"row"},
-      h("div",{class:"main"}, h("strong",{}, d.title),
-        h("div",{class:"dest-meta"}, d.level ? h("span",{}, d.level) : null, d.travel ? h("span",{}, d.travel) : null, d.price ? h("span",{}, d.price) : null),
-        d.desc ? h("span",{class:"meta"}, d.desc) : null,
-        voters.length ? h("span",{class:"meta"}, "Röstat: " + voters.join(", ")) : null,
-        who ? h("span",{class:"meta"}, `föreslaget av ${who}`) : null,
-        h("div",{class:"bar"}, h("i",{style:`width:${Math.round(votesOf(d)/max*100)}%`}))),
-      h("span",{class:"pill"}, `${rost(votesOf(d))}`),
-      h("button",{class: voted ? "btn small" : "btn ghost small", type:"button", onclick:()=>{ if (!needMe()) return;
-        write(()=>db.doc("destinations/"+d.id).update({["votes."+me]:!voted})); }}, voted ? "Röstat" : "Rösta"));
-  }) : [h("div",{class:"empty"}, S.loaded ? "Inga koncept än. Föreslå det första nedan." : "Laddar…")]));
+/* Upplägget är beslutat: hus på Djurö 16–18 april 2027. Arrangörerna fyller i detaljerna om huset. */
+function planRows(){
+  const p = S.plan || {}, rows = [];
+  const row = (label, val) => h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{}, label), h("span",{class:"meta"}, val)));
+  rows.push(row("Status", p.status === "Bokat" ? "Bokat" : "Inte bokat än"));
+  if (p.house) rows.push(row("Huset", p.house));
+  if (+p.price > 0) rows.push(row("Pris för boendet", kr(+p.price) + (+p.beds > 0 ? ` · ${+p.beds} sängar` : "")));
+  else if (+p.beds > 0) rows.push(row("Sängar", String(+p.beds)));
+  if (/^https?:\/\//.test(p.link || "")) rows.push(h("div",{class:"row"}, h("div",{class:"main"}, h("strong",{}, "Annonsen"), h("a",{href:p.link, target:"_blank", rel:"noopener"}, "Öppna länken"))));
+  if (p.notes) rows.push(row("Anteckningar", p.notes));
+  return rows;
 }
-$("destForm").addEventListener("submit", async e => { e.preventDefault(); if (!needMe()) return;
-  const title = $("dTitle").value.trim(); if (!title) return;
-  const data = {title, level:$("dLevel").value, travel:$("dTravel").value.trim(), price:$("dPrice").value.trim(), desc:$("dDesc").value.trim(), by:me, votes:{[me]:true}, createdAt:new Date().toISOString()};
-  if (await write(()=>db.collection("destinations").add(data))) { e.target.reset(); toast("Konceptet är tillagt"); } });
+function renderPlan(){
+  const p = S.plan || {};
+  $("planInfo").replaceChildren(...planRows());
+  const f = $("planForm");
+  if (f.contains(document.activeElement)) return;
+  $("plHouse").value = p.house || ""; $("plStatus").value = p.status === "Bokat" ? "Bokat" : "Inte bokat";
+  $("plPrice").value = +p.price > 0 ? +p.price : ""; $("plBeds").value = +p.beds > 0 ? +p.beds : "";
+  $("plLink").value = p.link || ""; $("plNotes").value = p.notes || "";
+}
+$("planForm").addEventListener("submit", async e => { e.preventDefault();
+  const data = {house:$("plHouse").value.trim(), status:$("plStatus").value, price:Math.round(+$("plPrice").value||0), beds:Math.round(+$("plBeds").value||0),
+    link:$("plLink").value.trim(), notes:$("plNotes").value.trim(), by:me||"", updatedAt:nowIso()};
+  if (!(await write(()=>db.doc("orgsettings/plan").set(data)))) return;
+  if (data.price > 0 && data.price !== +S.calc.lodging) { const next = {...DEFAULT_CALC, ...S.calc, lodging:data.price}; S.calc = next; write(()=>db.doc("orgsettings/calc").set(next)); }
+  toast("Huset är sparat"); document.activeElement && document.activeElement.blur && document.activeElement.blur(); render(); });
 const isLate = t => t.status!=="Klar" && t.due && t.due < today();
 function taskRow(t){
   const late = isLate(t), done = t.status === "Klar";
@@ -910,14 +858,6 @@ const SEED = {
     robin:{name:"Robin", contact:"", role:"Deltagare", status:"Ej inbjuden", paid:false},
     anders:{name:"Anders", contact:"", role:"Deltagare", status:"Ej inbjuden", paid:false},
   },
-  // Koncept efter Elins svar (20 okt). Priser är uppskattningar per person, ca 10 pers, från Örebro.
-  destinations: {
-    are:{order:1, level:"Mellan", title:"A. Åre: skidor, afterski och fjälltur", travel:"Nattåg fre kväll (bil går också)", price:"6 500–7 500 kr (bil 5 500–6 500)", desc:"Skidor och afterski i Åre, plus guidad fjälltur till Storulvån med lunch och bastu."},
-    vildmark:{order:2, level:"Mellan", title:"B. Vildmark till Storulvån", travel:"Bil ca 8 h", price:"5 500–7 000 kr", desc:"Tur från Storlien/Enafors till STF Storulvån. En kväll med bastu, middag och häng. Risk: lugnt för party."},
-    lyx:{order:3, level:"Lyx", title:"C. Lyx: Åre + Storulvån med guide och kock", travel:"Nattåg eller bil", price:"ca 9 500 kr", desc:"En natt party i Åre och en natt på Storulvån med guide och kock."},
-    berlin:{order:4, level:"Mellan", title:"D. Berlin: förfest och klubb/konsert", travel:"Bil + flyg, ca 4 h", price:"5 000–7 000 kr", desc:"Lång förfest och sedan klubb i Berlin-stil eller konsert. Ingen snö, och Jacob gillar inte ungdomsnattklubb."},
-    branas:{order:5, level:"Enkel", title:"E. Enkel: stuga i Branäs/Sälen", travel:"Bil 3–4 h", price:"2 500–3 000 kr", desc:"Självhushåll i stuga och skidåkning."},
-  },
   activities: {
     bastu:{title:"Bastu och ölprovning", cost:500, desc:"Vedeldad bastu, kallbad och guidad provning av lokala öl på kvällen."},
     cykel:{title:"Cykeltur (grus eller MTB)", cost:400, desc:"Halvdagstur i Kilsbergen eller längs Vättern. Hyrcyklar finns för den som saknar."},
@@ -931,11 +871,9 @@ const SEED = {
     t02:["Kontakta Elin (partnern): helgen hålls fri, gästlista, gränser, krock med möhippan","2026-11-08","alexander"],
     t03:["Lägg in alla deltagare med kontaktuppgifter i appen","2026-11-15"],
     t04:["Skicka applänken till alla (inte till Jacob)","2026-11-15","martin"],
-    t07:["Besluta budgettak gemensamt (före koncept och aktiviteter)","2026-11-15"],
-    t05:["Välj koncept och helg gemensamt (rösta i appen)","2026-11-22"],
+    t05:["Boka huset på Djurö (16–18 april 2027)","2026-11-29"],
     t06:["Skicka save-the-date med pris och helg","2026-11-29"],
     t08:["Ta in förskott och lås antalet","2026-12-13"],
-    t09:["Boka boende för hela helgen","2026-12-20"],
     t10:["Boka huvudaktivitet (cykel, kanot eller fiske)","2027-02-15"],
     t11:["Boka bastu och ölprovning","2027-02-15"],
     t12:["Ordna transport till och från Örebro","2027-02-28"],
@@ -964,7 +902,6 @@ async function seedOrg(){
   if (any) {
     for (const [c, docs] of Object.entries(old)) for (const d of docs) w.push(odb.doc(c+"/"+d.id).set(d.data()));
   } else {
-    for (const [id, d] of Object.entries(SEED.destinations)) w.push(odb.doc("destinations/"+id).set({...d, by:"", votes:{}}));
     for (const [id, a] of Object.entries(SEED.activities)) w.push(odb.doc("activities/"+id).set({...a, by:"", votes:{}}));
     for (const [id, [title, due, owner, status]] of Object.entries(SEED.tasks)) w.push(odb.doc("tasks/"+id).set({title, due, owner:owner||"", status:status||"Att göra"}));
   }
@@ -998,17 +935,16 @@ function lockOrg(){ try { localStorage.removeItem(ORG_KEY + ":" + groupCode); } 
 let onErr;
 let orgPending = 0;
 function listenOrg(){
-  orgPending = 7; S.orgLoaded = false;
+  orgPending = 5; S.orgLoaded = false;
   const ready = () => { if (orgPending > 0 && --orgPending === 0) S.orgLoaded = true; render(); };
   const list = (name, set) => odb.collection(name).onSnapshot(s => { set(s.docs); ready(); }, onErr);
   list("datevotes", d => S.datevotes = Object.fromEntries(d.map(x => [x.id, x.data()])));
-  list("budget", d => S.budget = Object.fromEntries(d.map(x => [x.id, x.data()])));
   list("activities", d => S.acts = d.map(x => ({id:x.id, ...x.data()})));
-  list("destinations", d => S.dests = d.map(x => ({id:x.id, ...x.data()})));
   list("tasks", d => S.tasks = d.map(x => ({id:x.id, ...x.data()})));
   list("schedule", d => S.orgSchedule = d.map(x => ({id:x.id, ...x.data()})).filter(it => it.title));
   list("teasers", d => S.orgTeasers = d.map(x => ({id:x.id, ...x.data()})).filter(t => t.text));
   odb.collection("diet").onSnapshot(s => { S.diet = Object.fromEntries(s.docs.map(x => [x.id, x.data()])); render(); }, onErr);
+  odb.doc("orgsettings/plan").onSnapshot(s => { S.plan = s.exists ? (s.data() || {}) : {}; render(); }, onErr);
   odb.doc("orgsettings/calc").onSnapshot(s => { S.calc = s.exists ? {...DEFAULT_CALC, ...s.data()} : {...DEFAULT_CALC}; render(); }, onErr);
 }
 
