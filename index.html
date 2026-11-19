@@ -171,10 +171,10 @@ input,select,textarea{font-size:16px}
     <nav role="tablist" id="tabs">
       <button role="tab" data-tab="hem" aria-selected="true">Hem</button>
       <button role="tab" data-tab="oversikt">Översikt</button>
+      <button role="tab" data-tab="resmal">Upplägg</button>
       <button role="tab" data-tab="uppgifter">Uppgifter<span class="badge" id="taskBadge" hidden></span></button>
       <button role="tab" data-tab="datum">Datum</button>
-      <button role="tab" data-tab="budget">Budget</button>
-      <button role="tab" data-tab="resmal">Koncept</button>
+      <button role="tab" data-tab="budget">Kostnad</button>
       <button role="tab" data-tab="aktiviteter">Aktiviteter</button>
       <button role="tab" data-tab="helgen">Helgen</button>
       <button role="tab" data-tab="utlagg">Utlägg</button>
@@ -253,7 +253,7 @@ input,select,textarea{font-size:16px}
     <div class="stats" id="stats"></div>
     <div class="grid2">
       <div class="panel"><h3 id="ovTasksH">Närmaste uppgifter</h3><div class="rows" id="ovTasks"></div></div>
-      <div class="panel"><h3>Populäraste aktiviteter</h3><div class="rows" id="ovActs"></div><h3>Populäraste koncept</h3><div class="rows" id="ovDests"></div></div>
+      <div class="panel"><h3>Populäraste aktiviteter</h3><div class="rows" id="ovActs"></div><h3>Huset på Djurö</h3><div class="rows" id="ovDests"></div></div>
     </div>
   </section>
 
@@ -286,21 +286,9 @@ input,select,textarea{font-size:16px}
     <div class="panel scroll"><table id="dateTable"></table></div>
   </section>
 
-  <!-- BUDGET -->
+  <!-- KOSTNAD (budgetomröstningen är borttagen, kalkylen finns kvar) -->
   <section role="tabpanel" id="p-budget" hidden>
-    <div><h2>Budget</h2><p class="lead">Varje arrangör sätter sitt eget tak för hela helgen, inklusive Jacobs del och 10 % buffert. Bara fördelningen visas, inte vem som valt vad. Kalkylen nedan visar vad det faktiskt kostar.</p></div>
-    <div class="grid2">
-      <div class="panel">
-        <h3>Mitt val (arrangörer)</h3>
-        <p id="budgetNote" class="lead" hidden>Budgeten sätts av arrangörerna. Här ser du vad de landat i.</p>
-        <form class="form" id="budgetForm">
-          <div class="wide" id="bSlider"></div>
-          <label class="wide">Kommentar<input id="bComment" maxlength="140" placeholder="t.ex. hellre enklare boende och mer aktivitet"></label>
-          <button class="btn" type="submit" id="bSave">Spara</button>
-        </form>
-      </div>
-      <div class="panel"><h3>Arrangörernas val</h3><div id="budgetSummary"></div><div class="rows" id="budgetList"></div></div>
-    </div>
+    <div><h2>Kostnad</h2><p class="lead">Vad helgen på Djurö kostar per person. Ändringar sparas för alla.</p></div>
     <div class="panel">
       <h3>Kostnadskalkyl</h3>
       <p class="lead">Boendet är en fast kostnad och delas på alla som betalar. Övriga kostnader räknas per person, även Jacobs del. Ändringar sparas för alla.</p>
@@ -316,20 +304,27 @@ input,select,textarea{font-size:16px}
     </div>
   </section>
 
-  <!-- RESMÅL -->
+  <!-- UPPLÄGG (beslutat, ersätter konceptomröstningen) -->
   <section role="tabpanel" id="p-resmal" hidden>
-    <div><h2>Koncept</h2><p class="lead">Arrangörerna väljer koncept tillsammans. Rösta på alla du kan tänka dig, gärna flera; flest röster leder. Priserna är uppskattningar per person för hela helgen och inte kontrollerade hos leverantörerna.</p></div>
-    <div class="rows" id="dests"></div>
+    <div><h2>Upplägg: hus på Djurö</h2></div>
     <div class="panel">
-      <h3>Föreslå ett koncept</h3>
-      <form class="form" id="destForm">
-        <label>Koncept<input id="dTitle" required maxlength="80" placeholder="t.ex. Kraków: skytte och karting"></label>
-        <label>Budgetnivå<select id="dLevel"><option>Enkel</option><option selected>Mellan</option><option>Lyx</option></select></label>
-        <label>Resväg och restid<input id="dTravel" maxlength="60" placeholder="t.ex. flyg från Arlanda"></label>
-        <label>Pris per person<input id="dPrice" maxlength="40" placeholder="t.ex. 4 000–7 000 kr"></label>
-        <label class="wide">Vad gör man<input id="dDesc" maxlength="300"></label>
-        <button class="btn" type="submit">Föreslå</button>
+      <span class="pill" style="align-self:flex-start;width:max-content">Beslutat</span>
+      <p><b>Vi hyr ett hus på Djurö i Stockholms skärgård, fredag–söndag 16–18 april 2027.</b></p>
+      <p class="lead">Omröstningarna om budget och koncept är avslutade. Aktiviteter och schema planeras vidare i sina flikar.</p>
+      <div class="rows" id="planInfo"></div>
+    </div>
+    <div class="panel">
+      <h3>Huset</h3>
+      <form class="form" id="planForm">
+        <label>Namn eller adress<input id="plHouse" maxlength="120" placeholder="t.ex. Villa vid Djurhamn"></label>
+        <label>Status<select id="plStatus"><option>Inte bokat</option><option>Bokat</option></select></label>
+        <label>Pris för boendet totalt (kr)<input id="plPrice" type="number" min="0" step="100"></label>
+        <label>Antal sängar<input id="plBeds" type="number" min="0" step="1"></label>
+        <label class="wide">Länk till annonsen<input id="plLink" type="url" maxlength="400" placeholder="https://"></label>
+        <label class="wide">Anteckningar<textarea id="plNotes" maxlength="1000" rows="2" placeholder="t.ex. bastu, avbokningsregler, incheckning"></textarea></label>
+        <button class="btn" type="submit">Spara</button>
       </form>
+      <p class="lead" style="font-size:13px">Priset förs också in som boendekostnad i kalkylen under Kostnad.</p>
     </div>
   </section>
 
