@@ -173,12 +173,10 @@ input,select,textarea{font-size:16px}
       <button role="tab" data-tab="oversikt">Översikt</button>
       <button role="tab" data-tab="resmal">Upplägg</button>
       <button role="tab" data-tab="uppgifter">Uppgifter<span class="badge" id="taskBadge" hidden></span></button>
-      <button role="tab" data-tab="datum">Datum</button>
       <button role="tab" data-tab="budget">Kostnad</button>
       <button role="tab" data-tab="aktiviteter">Aktiviteter</button>
       <button role="tab" data-tab="helgen">Helgen</button>
       <button role="tab" data-tab="utlagg">Utlägg</button>
-      <button role="tab" data-tab="topp">Topplista</button>
       <button role="tab" data-tab="deltagare">Deltagare</button>
     </nav>
   </div>
@@ -278,12 +276,6 @@ input,select,textarea{font-size:16px}
       <textarea id="inviteText" readonly></textarea>
       <div class="inline"><button class="btn small" type="button" id="shareInvite" hidden>Dela</button><button class="btn ghost small" type="button" id="copyInvite">Kopiera inbjudan</button></div>
     </div>
-  </section>
-
-  <!-- DATUM -->
-  <section role="tabpanel" id="p-datum" hidden>
-    <div><h2>Vilken helg funkar?</h2><p class="lead">Tryck på ditt svar för att växla mellan Kan, Kanske och Kan inte. Helgerna där Jacob är upptagen enligt Elin är redan bortplockade (v3, 5–7 feb och 12–21 mars), liksom nyårshelgen, 9–11 och 23–25 april.</p></div>
-    <div class="panel scroll"><table id="dateTable"></table></div>
   </section>
 
   <!-- KOSTNAD (budgetomröstningen är borttagen, kalkylen finns kvar) -->
@@ -397,29 +389,6 @@ input,select,textarea{font-size:16px}
         <label>Rum<input id="rName" maxlength="40" placeholder="t.ex. Övervåningen"></label>
         <label>Sängar<input id="rBeds" type="number" min="1" max="20" value="2" inputmode="numeric"></label>
         <button class="btn ghost" type="submit">Lägg till rum</button>
-      </form>
-    </div>
-  </section>
-
-  <!-- TOPPLISTA -->
-  <section role="tabpanel" id="p-topp" hidden>
-    <div><h2>Topplista</h2><p class="lead">Grenar under helgen. Alla kan rapportera ett resultat, även utan nät: det skickas när nätet är tillbaka. Bästa resultatet per person räknas.</p></div>
-    <div class="panel"><h3>Rapportera</h3>
-      <form class="form" id="scoreForm">
-        <label>Gren<select id="scGren" required></select></label>
-        <label>Vem<select id="scWho"></select></label>
-        <label>Resultat<input id="scVal" type="number" step="any" inputmode="decimal" required></label>
-        <label>Kommentar<input id="scNote" maxlength="100" placeholder="valfritt"></label>
-        <button class="btn" type="submit">Rapportera</button>
-      </form>
-    </div>
-    <div class="rows" id="toppList"></div>
-    <div class="panel" data-org hidden><h3>Ny gren</h3>
-      <form class="form" id="grenForm">
-        <label>Gren<input id="gTitle" required maxlength="60" placeholder="t.ex. Flest åk"></label>
-        <label>Enhet<input id="gUnit" maxlength="20" placeholder="t.ex. åk, sek, poäng"></label>
-        <label>Vem vinner<select id="gBetter"><option value="high">Högst vinner</option><option value="low">Lägst vinner (t.ex. tid)</option></select></label>
-        <button class="btn ghost" type="submit">Lägg till gren</button>
       </form>
     </div>
   </section>

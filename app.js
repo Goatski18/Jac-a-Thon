@@ -1,31 +1,12 @@
-// Möjliga helger 2027 (fre–sön). Borta enligt Elin: v3 (22–24 jan), Umeå 2–5 feb (5–7 feb), 13–20 mars (12–14 och 19–21 mars).
-const WEEKENDS = [
-  {id:"w0108", label:"8–10 jan", note:""},
-  {id:"w0115", label:"15–17 jan", note:""},
-  {id:"w0129", label:"29–31 jan", note:""},
-  {id:"w0212", label:"12–14 feb", note:""},
-  {id:"w0219", label:"19–21 feb", note:"Sportlov i vissa län"},
-  {id:"w0226", label:"26–28 feb", note:"Sportlov i vissa län"},
-  {id:"w0305", label:"5–7 mar", note:"Sportlov i vissa län"},
-  {id:"w0326", label:"26–28 mar", note:"Påsk, avråds"},
-  {id:"w0402", label:"2–4 apr", note:""},
-  {id:"w0416", label:"16–18 apr", note:""},
-  {id:"w0430", label:"30 apr–2 maj", note:"Valborg"},
-  {id:"w0507", label:"7–9 maj", note:"Kristi himmelsfärd"},
-  {id:"w0514", label:"14–16 maj", note:"Pingst på söndagen"},
-  {id:"w0521", label:"21–23 maj", note:""},
-  {id:"w0528", label:"28–30 maj", note:""},
-];
-const VOTE_LABEL = {yes:"Kan", maybe:"Kanske", no:"Kan inte", "":"–"};
-const NEXT_VOTE = {"":"yes", yes:"maybe", maybe:"no", no:""};
+// Datumet är beslutat: fre–sön 16–18 april 2027 (datumomröstningen är borttagen).
 const STATUSES = ["Ej inbjuden","Inbjuden","Kommer","Kanske","Kan inte"];
 const ROLES = ["Deltagare","Arrangör","Sammankallande","Kassör"];
 const TASK_STATUS = ["Att göra","Pågår","Klar"];
 const DEFAULT_CALC = {lodging:25000, food:1200, act:600, trans:0, buf:10, groom:1};
 
-const S = {people:[], datevotes:{}, acts:[], plan:{}, tasks:[], expenses:[], calc:{...DEFAULT_CALC}, loaded:false,
+const S = {people:[], acts:[], plan:{}, tasks:[], expenses:[], calc:{...DEFAULT_CALC}, loaded:false,
   orgLoaded:false, meta:{}, news:[], schedule:[], orgSchedule:[], cars:[], rooms:[], practical:{}, diet:{},
-  teasers:[], orgTeasers:[], grenar:[], resultat:[]};
+  teasers:[], orgTeasers:[]};
 let db = null; // router till gruppdel/arrangörsdel, false om datan inte går att nå
 let me = ""; try { me = localStorage.getItem("svx-me") || ""; } catch(e) {}
 
@@ -72,7 +53,7 @@ async function write(fn){
 }
 
 /* ---------- tabs ---------- */
-const TABS = ["hem","oversikt","resmal","uppgifter","datum","budget","aktiviteter","helgen","utlagg","topp","deltagare"];
+const TABS = ["hem","oversikt","resmal","uppgifter","budget","aktiviteter","helgen","utlagg","deltagare"];
 let curTab = "hem", wantTab = "hem";
 function showTab(t){ wantTab = t; try { localStorage.setItem("svx-tab", t); } catch(e) {} applyTab(); }
 function applyTab(){
@@ -143,7 +124,7 @@ const nowIso = () => new Date().toISOString();
 /* ---------- lägen och flikar ----------
    Deltagare: bara Hem under planeringen, Hem/Helgen/Utlägg/Deltagare när helgläget är på.
    Arrangörer (med PIN): allt. */
-const TAB_SCOPE = {hem:"all", oversikt:"org", uppgifter:"org", datum:"org", budget:"org", resmal:"org", aktiviteter:"org", helgen:"live", utlagg:"live", topp:"live", deltagare:"live"};
+const TAB_SCOPE = {hem:"all", oversikt:"org", uppgifter:"org", budget:"org", resmal:"org", aktiviteter:"org", helgen:"live", utlagg:"live", deltagare:"live"};
 const isLive = () => (S.meta || {}).phase === "live";
 const tabVisible = t => { const sc = TAB_SCOPE[t]; return sc === "all" || isOrg() || (sc === "live" && isLive()); };
 function renderTabs(){
@@ -397,53 +378,10 @@ function render(){
   if (personName(me) && !$("myYak").dataset.for) { $("myYak").dataset.for = me; $("myYak").replaceChildren(yakEditor(me)); }
   if ($("myYak").dataset.for && $("myYak").dataset.for !== me) { $("myYak").dataset.for = ""; $("myYak").replaceChildren(); }
   // Varje del ritas för sig, så att en trasig post bara påverkar sin egen flik.
-  const parts = [renderTabs, renderWelcome, renderStatus, renderHem, renderHelgen, renderPeople, renderExpenses, renderTopp];
-  if (isOrg()) parts.push(renderOverview, renderDates, renderBudget, renderPlan, renderActs, renderTasks);
+  const parts = [renderTabs, renderWelcome, renderStatus, renderHem, renderHelgen, renderPeople, renderExpenses];
+  if (isOrg()) parts.push(renderOverview, renderBudget, renderPlan, renderActs, renderTasks);
   for (const f of parts) try { f(people); } catch(e) { console.error(f.name, e); }
 }
-
-/* Topplista: arrangörerna skapar grenar, alla rapporterar. Bästa resultatet per person räknas. */
-const MEDALS = ["🥇","🥈","🥉"];
-function grenRanking(g){
-  const low = g.better === "low", best = {};
-  for (const r of S.resultat.filter(r => r.gren === g.id)) { const b = best[r.person];
-    if (!b || (low ? r.value < b.value : r.value > b.value)) best[r.person] = r; }
-  return Object.values(best).sort((a,b) => low ? a.value - b.value : b.value - a.value);
-}
-function renderTopp(people){
-  const gs = [...S.grenar].sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
-  const gsel = $("scGren"), gcur = gsel.value;
-  gsel.replaceChildren(...(gs.length ? gs.map(g => h("option",{value:g.id}, g.title)) : [h("option",{value:""}, "Inga grenar än")]));
-  if (gs.some(g => g.id === gcur)) gsel.value = gcur;
-  const wsel = $("scWho"), wcur = wsel.value;
-  wsel.replaceChildren(...people.map(p => h("option",{value:p.id}, p.name)));
-  wsel.value = wcur || (personName(me) ? me : "");
-  const fmtVal = (g, v) => `${String(v).replace(".", ",")}${g.unit ? " " + g.unit : ""}`;
-  $("toppList").replaceChildren(...(gs.length ? gs.map(g => {
-    const rank = grenRanking(g);
-    const recent = S.resultat.filter(r => r.gren === g.id).sort((a,b)=>(b.at||"").localeCompare(a.at||"")).slice(0, 3);
-    return h("div",{class:"panel"}, h("h3",{}, g.title, g.better === "low" ? " (lägst vinner)" : ""),
-      h("div",{class:"rows"}, ...(rank.length ? rank.map((r, i) => h("div",{class:"row" + (r.person === me ? " hl" : "")}, h("span",{style:"font-size:22px;width:28px;text-align:center"}, MEDALS[i] || String(i+1)),
-          yakEl(r.person, 32), h("div",{class:"main"}, h("strong",{}, personName(r.person) || "Okänd"), r.note ? h("span",{class:"meta"}, r.note) : null), h("b",{}, fmtVal(g, r.value))))
-        : [h("div",{class:"empty"}, "Inga resultat än.")])),
-      recent.length ? h("details",{}, h("summary",{style:"font-size:13px;color:var(--muted);cursor:pointer"}, "Senaste rapporterna"),
-        h("div",{class:"rows"}, ...recent.map(r => h("div",{class:"row"}, h("div",{class:"main"}, h("span",{}, `${personName(r.person) || "Okänd"}: ${fmtVal(g, r.value)}`),
-          h("span",{class:"meta"}, `rapporterat av ${personName(r.by) || "någon"} · ${fmtTime(r.at)}`)),
-          r.by === me || isOrg() ? h("button",{class:"btn danger small", type:"button", onclick:()=>{ if (confirm("Ta bort resultatet?")) write(()=>gdb.doc("resultat/"+r.id).delete()); }}, "Ta bort") : null)))) : null,
-      isOrg() ? h("div",{class:"inline"}, h("button",{class:"btn danger small", type:"button", onclick:()=>{ if (confirm(`Ta bort grenen ${g.title} och alla dess resultat?`)) write(async()=>{
-          await Promise.all(S.resultat.filter(r => r.gren === g.id).map(r => gdb.doc("resultat/"+r.id).delete())); await gdb.doc("grenar/"+g.id).delete(); }); }}, "Ta bort gren")) : null);
-  }) : [h("div",{class:"empty"}, isOrg() ? "Inga grenar än. Skapa den första längst ner." : "Arrangörerna har inte skapat några grenar än.")]));
-}
-$("scoreForm").addEventListener("submit", async e => { e.preventDefault(); if (!needMe()) return;
-  const gren = $("scGren").value, person = $("scWho").value, value = parseFloat(String($("scVal").value).replace(",", "."));
-  if (!gren) { toast("Det finns ingen gren att rapportera i än"); return; }
-  if (!person || !isFinite(value)) { toast("Välj vem och fyll i ett resultat"); return; }
-  const data = {gren, person, value, note:$("scNote").value.trim(), by:me, at:nowIso()};
-  $("scVal").value = ""; $("scNote").value = "";
-  if (await write(()=>gdb.doc("resultat/"+newId()).set(data))) toast("Resultatet är rapporterat"); });
-$("grenForm").addEventListener("submit", async e => { e.preventDefault();
-  const title = $("gTitle").value.trim(); if (!title) return;
-  if (await write(()=>gdb.doc("grenar/"+newId()).set({title, unit:$("gUnit").value.trim(), better:$("gBetter").value, by:me||"", createdAt:nowIso()}))) { e.target.reset(); toast("Grenen är skapad"); } });
 
 /* Utlägg: varje utlägg delas lika på dem som valts (standard: alla med status Kommer, gruppen bär Jacobs del).
    Borttagna utlägg ligger kvar med deleted-flagga så att de kan återställas. */
@@ -535,11 +473,6 @@ function renderStatus(){
   st.hidden = true;
 }
 
-function dateTally(w){
-  let yes=0, maybe=0, no=0;
-  for (const p of S.people) { const v = (S.datevotes[p.id]||{})[w]; if (v==="yes") yes++; else if (v==="maybe") maybe++; else if (v==="no") no++; }
-  return {yes, maybe, no, score: yes + maybe*0.5};
-}
 function pricePerPayer(payers){
   const c = S.calc; if (!payers) return 0;
   const perHead = (+c.food||0)+(+c.act||0)+(+c.trans||0);
@@ -549,7 +482,6 @@ function pricePerPayer(payers){
 
 function renderOverview(){
   const coming = S.people.filter(p=>p.status==="Kommer").length;
-  const best = WEEKENDS.map(w=>({w,...dateTally(w.id)})).sort((a,b)=>b.score-a.score)[0];
   const payers = coming || 15;
   const price = pricePerPayer(payers);
   const open = S.tasks.filter(t=>t.status!=="Klar");
@@ -557,7 +489,7 @@ function renderOverview(){
   const stat = (big, small) => h("div",{class:"stat"}, h("b",{},big), h("span",{},small));
   $("stats").replaceChildren(
     stat(`${coming} / ${S.people.length}`, "har tackat ja av inbjudna"),
-    stat(best && best.score ? best.w.label : "–", best && best.score ? `${best.yes} kan, ${best.maybe} kanske` : "inga datumsvar än"),
+    stat("16–18 apr", "fre–sön 2027, beslutat"),
     stat("Djurö", `hus, 16–18 april 2027 · ${S.plan.status === "Bokat" ? "bokat" : "inte bokat än"}`),
     stat(kr(price), `kalkylerat pris per person vid ${payers} betalande${coming?"":" (antagande)"}`),
     stat(String(open.length), overdue ? `öppna uppgifter, ${overdue} försenade` : "öppna uppgifter"),
@@ -605,25 +537,6 @@ $("copyInvite").addEventListener("click", async () => {
   try { await navigator.clipboard.writeText(ta.value); toast("Inbjudan kopierad"); }
   catch(e){ ta.focus(); ta.select(); toast("Markerad. Kopiera med Ctrl/Cmd + C"); }
 });
-
-function renderDates(people){
-  // En rad per helg: mitt svar + summering, så att tabellen får plats på mobilen.
-  const t = $("dateTable");
-  const tallies = WEEKENDS.map(w=>dateTally(w.id));
-  const bestScore = Math.max(...tallies.map(x=>x.score));
-  const names = (w, v) => people.filter(p => (S.datevotes[p.id]||{})[w] === v).map(p => p.name.split(" ")[0]);
-  t.replaceChildren(
-    h("thead",{}, h("tr",{}, h("th",{},"Helg"), h("th",{},"Mitt svar"), h("th",{},"Gruppen"))),
-    h("tbody",{}, ...WEEKENDS.map((w, i) => { const v = (S.datevotes[me]||{})[w.id] || ""; const x = tallies[i];
-      return h("tr",{class: x.score===bestScore && x.score>0 ? "hl" : ""},
-        h("td",{}, h("b",{}, w.label), w.note ? h("div",{class:"meta", style:"font-size:12px;color:var(--muted)"}, w.note) : null),
-        h("td",{}, h("button",{class:"vote", type:"button", "data-v":v, disabled:!personName(me),
-          onclick:()=>{ if (!needMe()) return; write(()=>db.doc("datevotes/"+me).set({...(S.datevotes[me]||{}), [w.id]:NEXT_VOTE[v]})); }}, VOTE_LABEL[v])),
-        h("td",{style:"white-space:normal;min-width:160px"}, `${x.yes} kan · ${x.maybe} kanske · ${x.no} kan inte${x.score===bestScore&&x.score>0?" ★":""}`,
-          x.yes ? h("div",{style:"font-size:12px;color:var(--muted)"}, "Kan: " + names(w.id, "yes").join(", ")) : null,
-          x.no ? h("div",{style:"font-size:12px;color:var(--muted)"}, "Kan inte: " + names(w.id, "no").join(", ")) : null));
-    })));
-}
 
 function renderBudget(){
   // kalkyl
@@ -935,10 +848,9 @@ function lockOrg(){ try { localStorage.removeItem(ORG_KEY + ":" + groupCode); } 
 let onErr;
 let orgPending = 0;
 function listenOrg(){
-  orgPending = 5; S.orgLoaded = false;
+  orgPending = 4; S.orgLoaded = false;
   const ready = () => { if (orgPending > 0 && --orgPending === 0) S.orgLoaded = true; render(); };
   const list = (name, set) => odb.collection(name).onSnapshot(s => { set(s.docs); ready(); }, onErr);
-  list("datevotes", d => S.datevotes = Object.fromEntries(d.map(x => [x.id, x.data()])));
   list("activities", d => S.acts = d.map(x => ({id:x.id, ...x.data()})));
   list("tasks", d => S.tasks = d.map(x => ({id:x.id, ...x.data()})));
   list("schedule", d => S.orgSchedule = d.map(x => ({id:x.id, ...x.data()})).filter(it => it.title));
@@ -977,7 +889,7 @@ render();
     if (e && e.code === "permission-denied") { db = false; loadErr = "Gruppkoden fungerar inte. Öppna inbjudningslänken du fick igen."; }
     else toast("Tappade kontakten med datan. Den kommer tillbaka när nätet gör det.");
     render(); };
-  let pending = 11;
+  let pending = 9;
   const ready = () => { if (pending > 0 && --pending === 0) { S.loaded = true; } render(); };
   const list = (name, set) => gdb.collection(name).onSnapshot(s => { set(s.docs); ready(); }, onErr);
   list("people", d => S.people = d.map(x => { const p = x.data(); return {id:x.id, ...p, name: String(p.name || "").trim() || "Utan namn"}; }));
@@ -987,8 +899,6 @@ render();
   list("cars", d => S.cars = d.map(x => ({id:x.id, ...x.data()})));
   list("rooms", d => S.rooms = d.map(x => ({id:x.id, ...x.data()})));
   list("teasers", d => S.teasers = d.map(x => ({id:x.id, ...x.data()})).filter(t => t.text));
-  list("grenar", d => S.grenar = d.map(x => ({id:x.id, ...x.data()})).filter(g => g.title));
-  list("resultat", d => S.resultat = d.map(x => ({id:x.id, ...x.data()})).map(r => ({...r, value: parseFloat(r.value)})).filter(r => r.gren && r.person && isFinite(r.value)));
   gdb.doc("settings/practical").onSnapshot(s => { S.practical = s.exists ? s.data() : {}; ready(); }, onErr);
   let seeding = false;
   gdb.doc("settings/meta").onSnapshot(s => {

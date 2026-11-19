@@ -3,7 +3,7 @@
 Installerbar webbapp (PWA) för att planera Jacobs svensexa. Ingen inloggning.
 
 - **Deltagare** öppnar inbjudningslänken (`…/#k=<gruppkod>`). Under planeringen ser de bara Hem (nyheter, fotoalbum, sin jak och sitt mobilnummer). I helgläget ser de också Helgen (släppt schema, praktiskt, bilar, rum), Utlägg och Deltagare.
-- **Arrangörer** låser upp arrangörsläget med en PIN-kod (knappen Arrangör längst ner). Där finns översikt, upplägget (beslutat: hus på Djurö 16–18 april 2027), uppgifter, datum, kostnadskalkyl, aktiviteter, hemligt schema och allergier/nödkontakt. Omröstningarna om budget och koncept är borttagna (gamla data ligger kvar orörda i Firestore).
+- **Arrangörer** låser upp arrangörsläget med en PIN-kod (knappen Arrangör längst ner). Där finns översikt, upplägget (beslutat: hus på Djurö 16–18 april 2027), uppgifter, kostnadskalkyl, aktiviteter, hemligt schema och allergier/nödkontakt. Omröstningarna om datum, budget och koncept är borttagna (gamla data ligger kvar orörda i Firestore).
 
 ## Filer
 - `index.html` – sidan med bilder och stil. `app.js` – all logik.
@@ -14,5 +14,5 @@ Installerbar webbapp (PWA) för att planera Jacobs svensexa. Ingen inloggning.
 
 ## Data
 - `g/<gruppkod>/…` – deltagardelen: people, expenses, news, schedule (bara släppta punkter), cars, rooms, settings/meta (phase, startDate, photoUrl), settings/practical.
-- `o/<SHA-256(gruppkod + ":" + PIN)>/…` – arrangörsdelen: datevotes, activities, tasks, schedule (alla punkter), diet, orgsettings (calc = kalkylen, plan = huset på Djurö). Gamla budget och destinations läses inte längre.
+- `o/<SHA-256(gruppkod + ":" + PIN)>/…` – arrangörsdelen: activities, tasks, schedule (alla punkter), diet, orgsettings (calc = kalkylen, plan = huset på Djurö). Gamla datevotes, budget och destinations läses inte längre.
 - Utlägg raderas mjukt (`deleted: true`) och kan återställas. `sharedBy` anger vilka som delar; tomt = alla med status Kommer.
